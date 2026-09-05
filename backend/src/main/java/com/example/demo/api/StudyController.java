@@ -4,7 +4,9 @@ import com.example.demo.auth.JwtService;
 import com.example.demo.service.ChatService;
 import com.example.demo.service.LookingNowService;
 import com.example.demo.service.MatchService;
+import com.example.demo.service.ProfilePictureService;
 import com.example.demo.service.RecommendationService;
+import com.example.demo.service.TestProfileService;
 import com.example.demo.service.UserService;
 import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.HttpStatus;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -34,15 +37,19 @@ public class StudyController {
     private final MatchService matches;
     private final ChatService chats;
     private final LookingNowService looking;
+    private final TestProfileService testProfiles;
+    private final ProfilePictureService pictures;
     private final JdbcTemplate db;
 
-    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, LookingNowService lookingNowService, JdbcTemplate jdbcTemplate) {
+    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, LookingNowService lookingNowService, TestProfileService testProfileService, ProfilePictureService profilePictureService, JdbcTemplate jdbcTemplate) {
         this.users = userService;
         this.jwt = jwtService;
         this.recs = recommendationService;
         this.matches = matchService;
         this.chats = chatService;
         this.looking = lookingNowService;
+        this.testProfiles = testProfileService;
+        this.pictures = profilePictureService;
         this.db = jdbcTemplate;
     }
 
@@ -98,11 +105,24 @@ public class StudyController {
         return users.profile(authenticatedUserId(r));
     }
 
+    @PostMapping("/me/picture")
+    Map<String, Object> uploadPicture(HttpServletRequest r, @RequestParam("file") MultipartFile file) {
+        long userId = authenticatedUserId(r);
+        pictures.save(userId, file);
+        return users.profile(userId);
+    }
+
     @GetMapping("/recommendations")
     Map<String, Object> recommendations(HttpServletRequest r, @RequestParam(defaultValue = "20") int limit) {
         if (limit < 1 || limit > 50)
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_limit", "limit must be 1 through 50");
         return Map.of("recommendations", recs.recommendations(authenticatedUserId(r), limit));
+    }
+
+    @PostMapping("/test/profiles")
+    Map<String, Object> createTestProfiles(HttpServletRequest request, @RequestParam(defaultValue = "10") int count) {
+        authenticatedUserId(request);
+        return Map.of("profiles", testProfiles.create(count));
     }
 
     @PostMapping("/recommendations/{userId}/accept")
@@ -118,6 +138,7 @@ public class StudyController {
 
     @GetMapping("/matches")
     Map<String, Object> allMatches(HttpServletRequest r) {
+        chats.removeExpiredChats();
         long authenticatedUserId = authenticatedUserId(r);
         List<Map<String, Object>> o = new ArrayList<>();
         for (Long other : matchesFor(authenticatedUserId)) {

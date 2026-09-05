@@ -19,11 +19,13 @@ public class MatchService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
+    private final ChatService chats;
     private final ReadCache readCache;
 
-    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, ReadCache readCache) {
+    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, ReadCache readCache) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
+        this.chats = chatService;
         this.readCache = readCache;
     }
 
@@ -109,6 +111,9 @@ public class MatchService {
         }
         if (!userService.exists(targetUserId)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "user_not_found", "User not found");
+        }
+        if (chats.hasActiveChat(currentUserId) || chats.hasActiveChat(targetUserId)) {
+            throw new ApiException(HttpStatus.CONFLICT, "user_unavailable", "Users with an active match cannot be matched again");
         }
     }
 

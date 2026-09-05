@@ -25,7 +25,8 @@ public class AuthFilter extends OncePerRequestFilter {
 
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String requestPath = request.getRequestURI();
-        return requestPath.equals("/health") || requestPath.equals("/register") || requestPath.equals("/login");
+        return requestPath.equals("/health") || requestPath.equals("/register") || requestPath.equals("/login")
+            || requestPath.startsWith("/uploads/profile-pictures/");
     }
 
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {

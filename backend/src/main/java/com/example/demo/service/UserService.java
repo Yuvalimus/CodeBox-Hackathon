@@ -111,7 +111,7 @@ public class UserService {
     public long register(Map<String, Object> requestBody) {
         String username = username(requestBody.get("username"));
         String email = email(requestBody.get("email"));
-        String password = requiredText(requestBody, "password", 12, 200);
+        String password = requiredText(requestBody, "password", 8, 200);
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
@@ -242,6 +242,12 @@ public class UserService {
 
     public Map<String, Object> profile(long userId) {
         return find(userId).serialize(true);
+    }
+
+    @Transactional
+    public void updatePictureUrl(long userId, String pictureUrl) {
+        jdbcTemplate.update("UPDATE users SET picture_url=?,updated_at=? WHERE id=?", pictureUrl, Instant.now().toString(), userId);
+        invalidateUserReads(userId);
     }
 
     private List<String> textValues(long userId, String tableName, String columnName) {
