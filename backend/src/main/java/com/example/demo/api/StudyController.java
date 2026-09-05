@@ -5,6 +5,7 @@ import com.example.demo.service.ChatService;
 import com.example.demo.service.LookingNowService;
 import com.example.demo.service.MatchService;
 import com.example.demo.service.ProfilePictureService;
+import com.example.demo.service.QueuePresenceService;
 import com.example.demo.service.RecommendationService;
 import com.example.demo.service.TestProfileService;
 import com.example.demo.service.UserService;
@@ -39,9 +40,10 @@ public class StudyController {
     private final LookingNowService looking;
     private final TestProfileService testProfiles;
     private final ProfilePictureService pictures;
+    private final QueuePresenceService queuePresence;
     private final JdbcTemplate db;
 
-    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, LookingNowService lookingNowService, TestProfileService testProfileService, ProfilePictureService profilePictureService, JdbcTemplate jdbcTemplate) {
+    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, LookingNowService lookingNowService, TestProfileService testProfileService, ProfilePictureService profilePictureService, QueuePresenceService queuePresenceService, JdbcTemplate jdbcTemplate) {
         this.users = userService;
         this.jwt = jwtService;
         this.recs = recommendationService;
@@ -50,6 +52,7 @@ public class StudyController {
         this.looking = lookingNowService;
         this.testProfiles = testProfileService;
         this.pictures = profilePictureService;
+        this.queuePresence = queuePresenceService;
         this.db = jdbcTemplate;
     }
 
@@ -103,6 +106,27 @@ public class StudyController {
     Map<String, Object> update(HttpServletRequest r, @RequestBody Map<String, Object> b) {
         users.update(authenticatedUserId(r), b);
         return users.profile(authenticatedUserId(r));
+    }
+
+    @PostMapping("/queue/heartbeat")
+    Map<String, Object> heartbeat(HttpServletRequest r) {
+        return queuePresence.heartbeat(authenticatedUserId(r));
+    }
+
+    @PostMapping("/queue")
+    Map<String, Object> joinQueue(HttpServletRequest r) {
+        return queuePresence.join(authenticatedUserId(r));
+    }
+
+    @GetMapping("/queue")
+    Map<String, Object> queueStatus(HttpServletRequest r) {
+        return queuePresence.status(authenticatedUserId(r));
+    }
+
+    @DeleteMapping("/queue")
+    ResponseEntity<Void> leaveQueue(HttpServletRequest r) {
+        queuePresence.leave(authenticatedUserId(r));
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/me/picture")
@@ -185,7 +209,7 @@ public class StudyController {
         return ResponseEntity.noContent().build();
     }
 
-    public record RegistrationRequest(String username, String password, String email, String bio, String pictureUrl,
+    public record RegistrationRequest(String username, String password, String email, String bio, String comments, String pictureUrl,
                                       String major, Integer gradYear, List<String> classes, List<String> studying,
                                       List<Integer> studyTimes, List<String> preferredStudyLocations) {
         public Map<String, Object> toServiceRequest() {
@@ -194,6 +218,7 @@ public class StudyController {
             values.put("password", password);
             values.put("email", email);
             values.put("bio", bio);
+            values.put("comments", comments);
             values.put("pictureUrl", pictureUrl);
             values.put("major", major);
             values.put("gradYear", gradYear);

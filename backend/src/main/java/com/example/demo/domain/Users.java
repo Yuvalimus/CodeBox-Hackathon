@@ -11,20 +11,21 @@ import java.util.Map;
  */
 public final class Users {
     private final long id;
-    private final String username, email, bio, pictureUrl, major, createdAt, updatedAt;
+    private final String username, email, bio, comments, pictureUrl, major, createdAt, updatedAt;
     private final Integer gradYear;
     private final List<String> classes, studying, preferredStudyLocations;
     private final List<Integer> studyTimes;
 
     public Users(ResultSet resultSet, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) throws SQLException {
-        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("picture_url"), resultSet.getString("major"), numberOrNull(resultSet.getObject("grad_year")), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, studyTimes, locations);
+        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("major"), numberOrNull(resultSet.getObject("grad_year")), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, studyTimes, locations);
     }
 
-    public Users(long id, String username, String email, String bio, String pictureUrl, String major, Integer gradYear, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) {
+    public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String major, Integer gradYear, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) {
         this.id = id;
         this.username = username;
         this.email = email;
         this.bio = bio;
+        this.comments = comments;
         this.pictureUrl = pictureUrl;
         this.major = major;
         this.gradYear = gradYear;
@@ -62,6 +63,7 @@ public final class Users {
             username,
             includeEmail ? email : null,
             bio,
+            comments,
             pictureUrl,
             major,
             gradYear,
@@ -82,6 +84,7 @@ public final class Users {
         String username,
         String email,
         String bio,
+        String comments,
         String pictureUrl,
         String major,
         Integer gradYear,
@@ -99,6 +102,7 @@ public final class Users {
                 out.put("email", email);
             }
             out.put("bio", bio);
+            out.put("comments", comments);
             out.put("pictureUrl", pictureUrl);
             out.put("major", major);
             out.put("gradYear", gradYear);

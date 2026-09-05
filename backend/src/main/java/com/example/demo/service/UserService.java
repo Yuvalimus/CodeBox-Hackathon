@@ -23,7 +23,7 @@ import java.util.TreeSet;
 @Service
 public class UserService {
     private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "studyTimes", "preferredStudyLocations");
-    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "pictureUrl", "gradYear", "major", "classes", "studying", "studyTimes", "preferredStudyLocations");
+    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "gradYear", "major", "classes", "studying", "studyTimes", "preferredStudyLocations");
     private static final Duration PROFILE_CACHE_TTL = Duration.ofMinutes(15);
     private static final String PROFILE_CACHE_PREFIX = "profile:";
     private final JdbcTemplate jdbcTemplate;
@@ -115,7 +115,7 @@ public class UserService {
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
-            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,picture_url,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(requestBody, "bio", 500), pictureUrl(requestBody.get("pictureUrl")), optionalText(requestBody, "major", 100), graduationYear(requestBody.get("gradYear")), timestamp, timestamp);
+            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(requestBody, "bio", 500), optionalText(requestBody, "comments", 500), pictureUrl(requestBody.get("pictureUrl")), optionalText(requestBody, "major", 100), graduationYear(requestBody.get("gradYear")), timestamp, timestamp);
         } catch (DataIntegrityViolationException exception) {
             throw emailAlreadyUsed();
         }
@@ -156,6 +156,8 @@ public class UserService {
         }
         if (requestBody.containsKey("bio"))
             jdbcTemplate.update("UPDATE users SET bio=?,updated_at=? WHERE id=?", optionalText(requestBody, "bio", 500), timestamp, userId);
+        if (requestBody.containsKey("comments"))
+            jdbcTemplate.update("UPDATE users SET comments=?,updated_at=? WHERE id=?", optionalText(requestBody, "comments", 500), timestamp, userId);
         if (requestBody.containsKey("pictureUrl"))
             jdbcTemplate.update("UPDATE users SET picture_url=?,updated_at=? WHERE id=?", pictureUrl(requestBody.get("pictureUrl")), timestamp, userId);
         if (requestBody.containsKey("gradYear"))
@@ -232,7 +234,7 @@ public class UserService {
 
     private Users loadUser(long userId) {
         try {
-            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,picture_url,major,grad_year,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), jdbcTemplate.queryForList("SELECT hour_of_week FROM user_study_times WHERE user_id=? ORDER BY hour_of_week", Integer.class, userId), textValues(userId, "user_preferred_locations", "location")), userId);
+            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,comments,picture_url,major,grad_year,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), jdbcTemplate.queryForList("SELECT hour_of_week FROM user_study_times WHERE user_id=? ORDER BY hour_of_week", Integer.class, userId), textValues(userId, "user_preferred_locations", "location")), userId);
             if (user == null) throw new EmptyResultDataAccessException(1);
             return user;
         } catch (EmptyResultDataAccessException exception) {

@@ -31,6 +31,7 @@ Creates an account and returns an access token plus the authenticated user profi
   "email": "alex@calpoly.edu",
   "password": "at-least-8-characters",
   "bio": "Optional; up to 500 characters.",
+  "comments": "Studying for one hour before the midterm.",
   "pictureUrl": "https://example.com/alex.jpg",
   "major": "Computer Science",
   "gradYear": 2027,
@@ -85,12 +86,13 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `pictureUrl`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
   "username": "Alex Rivera",
   "bio": "I like afternoon review sessions.",
+  "comments": "Studying for one hour before my exam.",
   "classes": ["CSC 357", "STAT 312"],
   "studying": ["CSC 357"]
 }
@@ -109,6 +111,26 @@ Content-Type: multipart/form-data
 ```
 
 Returns the complete updated profile. Its `pictureUrl` is a public URL such as `/uploads/profile-pictures/0f5f4da0-8d3e-4cfd-a8bf-4c1c3e2c5db4.jpg`.
+
+## Online queue
+
+Users must be in the online queue to appear in recommendations. While looking, the client should send a heartbeat every 30 seconds. A user is removed automatically after three missed heartbeats (90 seconds). Generated development test profiles are permanent queue members and do not need heartbeats.
+
+### `POST /queue`
+
+Adds the authenticated user to the recommendation queue. Returns `{ "online": true, "expiresAt": "..." }`.
+
+### `POST /queue/heartbeat`
+
+Refreshes the authenticated user's 90-second queue presence. Call this every 30 seconds while looking for matches. Returns `{ "online": true, "expiresAt": "..." }`.
+
+### `GET /queue`
+
+Returns the authenticated user's queue state. When queued, the response includes `expiresAt`; otherwise it returns `{ "online": false }`.
+
+### `DELETE /queue`
+
+Immediately removes the authenticated user from recommendations. Use this for a Stop Looking button. Returns `204 No Content`.
 
 ## Recommendations and matches
 

@@ -20,12 +20,14 @@ public class RecommendationService {
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
     private final ChatService chats;
+    private final QueuePresenceService queuePresence;
     private final ReadCache readCache;
 
-    public RecommendationService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, ReadCache readCache) {
+    public RecommendationService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, QueuePresenceService queuePresenceService, ReadCache readCache) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
         this.chats = chatService;
+        this.queuePresence = queuePresenceService;
         this.readCache = readCache;
     }
 
@@ -99,6 +101,7 @@ public class RecommendationService {
 
     public List<Map<String, Object>> recommendations(long userId, int limit) {
         chats.removeExpiredChats();
+        queuePresence.removeExpiredPresences();
         ReadCache.Key<List<Map<String, Object>>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + userId + ":" + limit);
         return readCache.getOrLoad(cacheKey, RECOMMENDATION_CACHE_TTL, () -> loadRecommendations(userId, limit));
     }
@@ -131,10 +134,14 @@ public class RecommendationService {
     private List<Long> eligibleCandidateIds(long userId) {
         return jdbcTemplate.queryForList(
             "SELECT users.id FROM users WHERE users.id<>? "
+                + "AND (EXISTS (SELECT 1 FROM user_queue_presence queue_presence "
+                + "WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) "
+                + "OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user "
+                + "WHERE permanent_test_user.user_id=users.id)) "
                 + "AND users.id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=?) "
                 + "AND users.id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
                 + "FROM matches WHERE user_a_id=? OR user_b_id=?) "
                 + "ORDER BY users.id",
-            Long.class, userId, userId, userId, userId, userId);
+            Long.class, userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId, userId, userId, userId);
     }
 }

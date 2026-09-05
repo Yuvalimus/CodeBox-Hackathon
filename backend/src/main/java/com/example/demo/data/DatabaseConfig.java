@@ -29,6 +29,11 @@ public class DatabaseConfig {
             if (usernameHasUniqueConstraint(connection)) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V2__allow_duplicate_usernames.sql"));
             }
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V3__user_queue_presence.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V4__permanent_test_queue_users.sql"));
+            if (!usersHasColumn(connection, "comments")) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V5__user_comments.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -39,6 +44,17 @@ public class DatabaseConfig {
         try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")) {
             try (var result = statement.executeQuery()) {
                 return result.next() && result.getString(1).matches("(?is).*username\\s+TEXT\\s+NOT\\s+NULL\\s+COLLATE\\s+NOCASE\\s+UNIQUE.*");
+            }
+        }
+    }
+
+    private boolean usersHasColumn(java.sql.Connection connection, String columnName) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("PRAGMA table_info(users)")) {
+            try (var result = statement.executeQuery()) {
+                while (result.next()) {
+                    if (columnName.equalsIgnoreCase(result.getString("name"))) return true;
+                }
+                return false;
             }
         }
     }

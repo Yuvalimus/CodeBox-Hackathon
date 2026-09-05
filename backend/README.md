@@ -28,12 +28,14 @@ All other routes require `Authorization: Bearer <token>`.
 `GET /matches`, `GET /chats`, `GET /chats/{chatId}`, `POST /chats/{chatId}/messages`,
 and `PUT|GET|DELETE /looking-now` implement the product flows. Profile reads/updates are at `GET|PATCH /me`.
 
-`PATCH /me` updates any supplied profile field: `username`, `email`, `bio`, `pictureUrl`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, or `preferredStudyLocations`. Profile arrays are JSON arrays at the API boundary.
+`PATCH /me` updates any supplied profile field: `username`, `email`, `bio`, `comments`, `pictureUrl`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, or `preferredStudyLocations`. `comments` is a public optional field for what the user is looking for (for example, “Studying for one hour”). Profile arrays are JSON arrays at the API boundary.
 
 Upload a profile picture with authenticated `POST /me/picture` using multipart field `file`. JPEG, PNG, and WebP files up to 5 MB are stored at `UPLOAD_DIR` (default: `uploads/profile-pictures`) and saved to `pictureUrl`.
 
 `POST /logout` requires a bearer token and returns `204`; that token is revoked until its normal expiry. When someone accepts a recommendation, they are prioritized in the recipient's recommendation list until the recipient swipes on them.
 
 Mutual matches are exclusive while their direct chat is active. Direct chats expire after 24 hours; expiration deletes the chat, its messages, and the match record, then returns both users to recommendation pools.
+
+Users appear in recommendations only while in the online queue. Use `POST /queue` to start looking, `POST /queue/heartbeat` every 30 seconds to remain online, and `DELETE /queue` for Stop Looking. Three missed heartbeats (90 seconds) remove the user automatically. Generated development test profiles remain permanently queued.
 
 For local development, set `TEST_DATA_ENABLED=true` to enable `POST /test/profiles?count=10`. It requires a bearer token and creates 1–50 randomized test profiles; it is disabled by default.

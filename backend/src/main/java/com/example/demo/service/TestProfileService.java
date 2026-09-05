@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -21,11 +22,13 @@ public class TestProfileService {
     private static final String[] LOCATIONS = {"Kennedy Library", "UU Plaza", "Engineering West", "Julian's Cafe"};
 
     private final UserService users;
+    private final QueuePresenceService queuePresence;
     private final boolean enabled;
     private final SecureRandom random = new SecureRandom();
 
-    public TestProfileService(UserService users, @Value("${app.test-data-enabled:false}") boolean enabled) {
+    public TestProfileService(UserService users, QueuePresenceService queuePresenceService, @Value("${app.test-data-enabled:false}") boolean enabled) {
         this.users = users;
+        this.queuePresence = queuePresenceService;
         this.enabled = enabled;
     }
 
@@ -40,6 +43,7 @@ public class TestProfileService {
         List<Map<String, Object>> profiles = new ArrayList<>();
         for (int index = 0; index < count; index++) {
             long userId = users.register(randomProfile());
+            queuePresence.joinPermanently(userId);
             Map<String, Object> profile = users.profile(userId);
             profile.remove("email");
             profiles.add(profile);
@@ -54,17 +58,19 @@ public class TestProfileService {
         String secondaryClass = pick(CLASSES);
         List<String> classes = primaryClass.equals(secondaryClass) ? List.of(primaryClass) : List.of(primaryClass, secondaryClass);
         String uniqueSuffix = UUID.randomUUID().toString().replace("-", "");
-        return Map.of(
-            "username", firstName + " " + lastName,
-            "email", "test-" + uniqueSuffix + "@calpoly.edu",
-            "password", UUID.randomUUID() + "test-password",
-            "bio", "Generated test profile for local development.",
-            "major", pick(MAJORS),
-            "gradYear", 2026 + random.nextInt(5),
-            "classes", classes,
-            "studying", List.of(primaryClass),
-            "studyTimes", List.of(random.nextInt(168), random.nextInt(168)),
-            "preferredStudyLocations", List.of(pick(LOCATIONS)));
+        Map<String, Object> profile = new HashMap<>();
+        profile.put("username", firstName + " " + lastName);
+        profile.put("email", "test-" + uniqueSuffix + "@calpoly.edu");
+        profile.put("password", UUID.randomUUID() + "test-password");
+        profile.put("bio", "Generated test profile for local development.");
+        profile.put("comments", "Looking for a focused one-hour study session.");
+        profile.put("major", pick(MAJORS));
+        profile.put("gradYear", 2026 + random.nextInt(5));
+        profile.put("classes", classes);
+        profile.put("studying", List.of(primaryClass));
+        profile.put("studyTimes", List.of(random.nextInt(168), random.nextInt(168)));
+        profile.put("preferredStudyLocations", List.of(pick(LOCATIONS)));
+        return profile;
     }
 
     private String pick(String[] values) {

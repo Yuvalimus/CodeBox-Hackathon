@@ -4,6 +4,7 @@ CREATE TABLE IF NOT EXISTS users (
                                      email TEXT NOT NULL COLLATE NOCASE UNIQUE,
                                      password_hash TEXT NOT NULL,
                                      bio TEXT NOT NULL DEFAULT '',
+                                     comments TEXT NOT NULL DEFAULT '',
                                      picture_url TEXT,
                                      grad_year INTEGER,
                                      major TEXT,
