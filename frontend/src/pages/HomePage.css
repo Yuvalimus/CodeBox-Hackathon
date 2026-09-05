@@ -1,4 +1,7 @@
 .buddy-home { min-height: 100svh; background: var(--paper); }
+.home-account-nav { display: flex; align-items: center; gap: 20px; font-size: 13px; }
+.home-account-nav > a { text-decoration: none; }
+@media(max-width: 650px) { .home-header, .home-account-nav { flex-wrap: wrap; } .home-account-nav { gap: 12px; } }
 .home-test-option { display: flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 44px; }
 .home-test-option input { width: 18px; height: 18px; accent-color: var(--ink); }
 .buddy-home { overflow-x: clip; }

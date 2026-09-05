@@ -15,3 +15,26 @@
 .setup-photo img { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; }
 .setup-back { display: block; margin: 12px auto 0; background: transparent; border: 0; padding: 12px 25px; color: var(--ink); }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }
+
+/* Consistent section spacing for the combined edit form. */
+.profile-edit .profile-grid { max-width: 560px; }
+.profile-edit .profile-card > section + section { margin-top: 32px; padding-top: 28px; border-top: 1px solid var(--border); }
+.profile-edit .profile-card > section > .field:last-child { margin-bottom: 0; }
+.setup-flow .profile-section-title { margin-bottom: 18px; }
+.setup-flow .profile-class-list:empty { margin-top: 0; }
+.setup-flow .profile-picture-title { font-size: 20px; letter-spacing: -.5px; margin: 0 0 18px; }
+.setup-flow:not(.profile-edit) .profile-picture-title { display: none; }
+.setup-avatars label { aspect-ratio: 1; min-width: 0; }
+.setup-avatars .avatar-selected { color: white; font-weight: 700; }
+.profile-upload-panel { display: flex; align-items: center; gap: 18px; padding: 20px; border: 1px dashed #aab89f; border-radius: 16px; background: #f0f4eb; }
+.profile-upload-preview { width: 76px; height: 76px; border-radius: 14px; object-fit: cover; flex-shrink: 0; }
+.profile-upload-content { min-width: 0; }
+.profile-upload-title { margin: 0; font-size: 14px; font-weight: 700; }
+.profile-upload-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin-top: 14px; }
+.profile-upload-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 15px; background: white; color: var(--ink); border: 1px solid #b8c5ad; border-radius: 10px; font: inherit; font-size: 13px; font-weight: 700; }
+.profile-upload-button:hover { background: #e4ecd9; border-color: var(--ink); }
+.profile-upload-button svg { width: 19px; height: 19px; }
+.profile-remove-photo { border: 0; background: transparent; color: var(--ink); padding: 10px; min-height: 44px; text-decoration: underline; text-underline-offset: 3px; font-size: 12px; }
+.profile-media-note { margin-top: 12px; }
+.profile-edit .submit { margin-top: 32px; border-radius: 10px; }
+@media(max-width:380px) { .profile-upload-panel { padding: 16px; gap: 12px; align-items: flex-start; } .profile-upload-preview { width: 52px; height: 52px; } }

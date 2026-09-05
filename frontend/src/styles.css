@@ -5,3 +5,10 @@
 @media(min-width:1500px){.story-panel{padding-left:15%;padding-right:12%}.story-content{padding-top:70px}.study-illustration{margin-top:45px;margin-bottom:35px}}
 @media(max-width:900px){.story-panel{padding:32px 8%}.form-panel{padding:45px 30px 25px}h1{font-size:42px}.story-footer{flex-direction:column;gap:5px}.study-illustration{transform:scale(.85);transform-origin:left center;width:340px;margin-top:5px;height:270px}.round-sticker{right:0}}
 @media(max-width:650px){.auth-layout{grid-template-columns:1fr}.story-panel{padding:24px}.brand{font-size:19px}.story-content{padding-top:30px;margin:0;max-width:none}.campus-label{font-size:8px}h1{font-size:35px;letter-spacing:-1.5px;margin:16px 0 12px}h1 br{display:none}h1 br::after{content:' '}h1>span{display:block}.story-content>p{font-size:13px;line-height:1.6;max-width:360px}.study-illustration,.story-footer{display:none}.form-panel{padding:35px 24px 22px}.eyebrow{font-size:8px}h2{font-size:30px}.auth-tabs{margin-top:24px}.form-panel>footer{margin-top:28px}}
+
+.match-notice { position: sticky; top: 12px; z-index: 50; display: flex; align-items: center; gap: 24px; width: min(880px, calc(100% - 32px)); margin: 12px auto; padding: 24px 28px; border: 1px solid #aabb96; border-radius: 18px; background: var(--brand); color: var(--ink); box-shadow: 0 12px 35px #26352a26; animation: match-notice-enter .3s ease-out; }
+.match-notice strong { font-size: 22px; }.match-notice p { margin: 7px 0 0; font-size: 14px; }.match-notice>div { flex: 1; }
+.match-notice button { border: 0; border-radius: 10px; padding: 13px 20px; min-height: 44px; background: var(--ink); color: white; font-weight: 700; white-space: nowrap; }.match-notice .match-notice-dismiss { background: transparent; color: var(--ink); font-size: 24px; padding: 8px 12px; }
+@keyframes match-notice-enter { from { opacity: 0; transform: translateY(-20px); } to { opacity: 1; transform: translateY(0); } }
+@media(max-width:600px) { .match-notice { gap: 12px; padding: 20px; flex-wrap: wrap; }.match-notice>div { flex-basis: 75%; }.match-notice strong { font-size: 19px; } }
+@media(prefers-reduced-motion:reduce) { .match-notice { animation: none; } }

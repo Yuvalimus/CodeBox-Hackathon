@@ -1,23 +1,29 @@
-# Matching contract handoff (backend unchanged)
+﻿# Remaining backend integration gaps
 
-## Backend-owned behavior still required
+Reviewed against backend/endpoints.md and the current Java services. Backend files were not changed.
 
-1. Incoming accept decisions should prioritize the requester in the recipient's recommendations. Do not send a request notification. The current recommendation response has no incoming-decision field and its ranking does not prioritize these actors. The frontend preserves server order and cannot safely invent this priority.
-2. On mutual acceptance, delete both users' looking-now rows within the match transaction and invalidate presence caches. DELETE /looking-now only affects the authenticated caller. The frontend can end its own presence, never another account's presence. Closed clients otherwise remain online until expiry.
-3. Expose a stable match event with match ID, partner profile, and chat ID to both clients, ideally through events or a cursor-based endpoint. GET /matches currently returns partner profiles without chat IDs; GET /chats returns chat IDs without partners. The frontend detects new chat IDs after establishing a baseline, while the accepting client uses the explicit accept response. Existing chats on first load are not falsely treated as new matches. Several simultaneous new matches remain accessible in the chat list; only one celebration is displayed.
+## Now supported
 
-## Frontend implementation
+Email/password login; display names through username at registration and PATCH /me; requester-first recommendations; mutual acceptance with a direct chat ID; profiles, messages, presence, and token revocation on logout.
 
-- No incoming-request notification UI, browser notification, or sound.
-- Right swipe records a server decision; only `matched: true` or a newly observed server-created chat triggers celebration.
-- `/match` animates, ends the current user's presence, then opens `/chat` after 2.4 seconds. Reduced-motion preferences disable animation. An offline failure provides retry and prevents claiming the user is offline.
-- Both active clients poll `/chats` every five seconds. Backend caches can delay detection. Chat messages refresh while their chat is open.
-- Recipient priority and atomic removal of both presences are not claimed as implemented.
+## Still needed
 
-## Other existing API gaps
+- Pool removal on matching belongs to the backend. Frontend clients stop their looking session/heartbeat on a confirmed match and no longer send DELETE presence on match.
+- Include match ID, partner profile, and chat ID together in GET /matches, and participant details in GET /chats. Current matches have only a user object; chats have no partner information. The frontend does not guess relationships by array position.
+- A durable match event/cursor or live event stream for both users. Open clients currently poll chat IDs every five seconds after a baseline; caches and browser throttling can delay detection. Existing chats are accessible through Matches & chats.
+- Persist avatar selection and college year. Photo uploads are now integrated through POST /me/picture. College year is not graduation year.
+- Expose the authenticated user's current presence/session including location and expiry so refresh can restore looking state reliably. Currently the presence GET excludes self; location is saved in preferredStudyLocations.
+- Paginate recommendations or filter online candidates before limiting: the frontend can only filter the first 50 returned recommendations by presence, so additional online users may be omitted.
 
-Email-only login needs native backend email lookup. The current frontend derives usernames for its own registrations. Display names, college year, avatar persistence, and photo uploads also need server support. Client validation is for usability; backend validation remains authoritative. HTTPS picture URLs are supported already.
+The backend still returns a compatibility number despite its agent guideline against exposing internal scores. The frontend never renders it. Frontend course input intentionally follows the requested four-digit format (CSC 2001); endpoint examples use older three-digit codes, which can still be displayed when returned by the server.
 
-## Manual two-client test
+Media integration is implemented in frontend/src/profileMedia.js. No profile data is persisted in cookies or browser storage. Uploaded photos are stored by the backend with a database URL; avatar choices and college year remain memory-only.
 
-Sign into two separate browser sessions, use a common class, and start looking on both. Request from A: B should see no request notification. Request back from B: B celebrates immediately from the server response; A celebrates after polling detects the new chat. Each open client deletes its own presence and enters the same chat. Send messages and allow for the backend cache. Test offline failure with the backend unavailable and verify Retry works without resending the swipe.
+Backend inconsistencies: PATCH /me rejects the relative pictureUrl returned by uploads; frontend omits unchanged picture URLs. Expired chat access returns 403/not_chat_member rather than a distinct expiry response; the UI reports the chat as unavailable. Repeating an accept on an existing match returns 409/user_unavailable despite endpoint wording that mentions returning an existing chat. The test-data endpoint exists but is not called automatically; the looping frontend test deck remains isolated.
+
+## Presence lifecycle skeleton
+
+App owns the in-memory looking session; Home and its deck stay mounted but hidden during profile/chat navigation. Keyboard swipes are disabled when Home is hidden. Stop looking uses the current DELETE /looking-now endpoint through presence.js; only clear the session after success. Navigation does not send an offline request. Browser reload restoration still needs a current-session endpoint.
+
+PresenceHeartbeat owns a cancellable, non-overlapping 30-second loop across routes. Its heartbeat API adapter is deliberately empty until the backend defines the route, cadence, expiry, and response. Heartbeats must only renew existing presence, never recreate a matched/stopped session. Matching ends the frontend looking session without sending offline: removal from the pool belongs to the backend. A match opens chat immediately while swiping, or shows a clickable banner elsewhere without interrupting the current chat/editor.
+
