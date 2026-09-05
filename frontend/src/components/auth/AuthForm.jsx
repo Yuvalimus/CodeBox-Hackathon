@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
 import PasswordField from '../PasswordField.jsx';
 
-export default function AuthForm({ signup, navigate }) {
+export default function AuthForm({ signup, navigate, onSignup }) {
+  const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmation, setConfirmation] = useState('');
@@ -19,6 +20,7 @@ export default function AuthForm({ signup, navigate }) {
   function submit(event) {
     event.preventDefault();
     const nextErrors = {};
+    if (signup && !name.trim()) nextErrors.name = 'Enter your name.';
     if (!/^[^\s@]+@calpoly\.edu$/i.test(email.trim())) nextErrors.email = 'Enter your Cal Poly email (name@calpoly.edu).';
     if (!password) nextErrors.password = 'Enter your password.';
     if (signup && password.length < 8) nextErrors.password = 'Use at least 8 characters.';
@@ -30,6 +32,10 @@ export default function AuthForm({ signup, navigate }) {
       return;
     }
     // TODO: Connect the login/signup API here. Do not store credentials locally.
+    if (signup) {
+      onSignup({ name: name.trim() });
+      return;
+    }
     setSubmitted(true);
   }
 
@@ -42,6 +48,11 @@ export default function AuthForm({ signup, navigate }) {
       <a href="/signup" aria-current={signup ? 'page' : undefined} onClick={navigate}>Sign up</a>
     </nav>
     <form onSubmit={submit} noValidate>
+      {signup && <div className="field">
+        <label htmlFor="name">Name</label>
+        <input id="name" name="name" autoComplete="name" value={name} onChange={update(setName, 'name')} required aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
+        {errors.name && <p className="error" id="name-error">{errors.name}</p>}
+      </div>}
       <div className="field">
         <label htmlFor="email">Cal Poly email</label>
         <input id="email" name="email" type="email" placeholder="you@calpoly.edu" autoComplete="username" autoCapitalize="none" spellCheck="false" value={email} onChange={update(setEmail, 'email')} required aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'email-error' : 'email-hint'} />

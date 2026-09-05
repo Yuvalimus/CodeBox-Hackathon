@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import LoginPage from './pages/LoginPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
+import ProfileSetupPage from './pages/ProfileSetupPage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import { PRODUCT_NAME } from './config/brand.js';
 
@@ -10,10 +11,12 @@ const routes = {
   '/': { component: LandingPage, title: 'Find your study people' },
   '/login': { component: LoginPage, title: 'Log in' },
   '/signup': { component: SignupPage, title: 'Sign up' },
+  '/profile-setup': { component: ProfileSetupPage, title: 'Set up your profile' },
 };
 const notFoundRoute = { component: NotFoundPage, title: 'Page not found' };
 
 export default function App() {
+  const [profile, setProfile] = useState(null);
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const route = Object.hasOwn(routes, pathname) ? routes[pathname] : notFoundRoute;
   const Page = route.component;
@@ -38,5 +41,12 @@ export default function App() {
     window.scrollTo(0, 0);
   }
 
-  return <Page navigate={navigate} />;
+  function onSignup({ name }) {
+    setProfile({ name, classes: [], major: '', bio: '', year: '', photo: null });
+    window.history.pushState({}, '', '/profile-setup');
+    setPathname('/profile-setup');
+    window.scrollTo(0, 0);
+  }
+
+  return <Page navigate={navigate} onSignup={onSignup} profile={profile} onProfileChange={setProfile} />;
 }
