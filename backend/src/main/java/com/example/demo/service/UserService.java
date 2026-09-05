@@ -112,7 +112,6 @@ public class UserService {
         String username = username(requestBody.get("username"));
         String email = email(requestBody.get("email"));
         String password = requiredText(requestBody, "password", 12, 200);
-        validateRegistration(email);
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
@@ -171,15 +170,11 @@ public class UserService {
         invalidateUserReads(userId);
     }
 
-    private void validateRegistration(String email) {
-        if (!email.matches("^[^\\s@]+@calpoly\\.edu$"))
-            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_email", "A valid @calpoly.edu email is required");
-    }
-
     private static String username(Object rawValue) {
         if (!(rawValue instanceof String)) throwInvalid("username", "username is invalid");
         String value = ((String) rawValue).trim();
-        if (value.isEmpty() || value.length() > 32) throwInvalid("username", "username is invalid");
+        if (value.isEmpty() || value.length() > 32 || value.codePoints().anyMatch(Character::isISOControl))
+            throwInvalid("username", "username is invalid");
         return value;
     }
 

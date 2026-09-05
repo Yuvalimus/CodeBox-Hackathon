@@ -21,7 +21,7 @@ The API listens on `http://localhost:8080`. SQLite schema migrations are applied
 
 ## API
 
-Public endpoints: `POST /register`, `POST /login`, `GET /health`. Login accepts `{ "email", "password" }`; emails are unique, while usernames are display names and may be shared. Failed login attempts return `401` with `error.code: "invalid_credentials"` and the message `Invalid username or password`. A reused email returns `409` with `error.code: "email_already_used"`.
+Public endpoints: `POST /register`, `POST /login`, `GET /health`. Login accepts `{ "email", "password" }`; emails are unique, while usernames are display names and may be shared. Usernames are display names, so spaces and symbols are accepted (up to 32 characters). Failed login attempts return `401` with `error.code: "invalid_credentials"` and the message `Invalid username or password`. A reused email returns `409` with `error.code: "email_already_used"`.
 All other routes require `Authorization: Bearer <token>`.
 
 `GET /recommendations`, `POST /recommendations/{userId}/accept`, `POST /recommendations/{userId}/reject`,
