@@ -1,4 +1,4 @@
-import test from 'node:test';
+﻿import test from 'node:test';
 import assert from 'node:assert/strict';
 
 const store = new Map();
@@ -26,7 +26,7 @@ test('profile writes exclude unsupported fields and keep studying within classes
 test('API sends bearer JSON requests, handles 204 and server errors', async () => {
   setToken('test-token');
   globalThis.fetch = async (url, options) => {
-    assert.equal(url, '/api/looking-now');
+    assert.equal(url, 'https://study.happyxd.dev/api/looking-now');
     assert.equal(options.method, 'PUT');
     assert.equal(options.headers.Authorization, 'Bearer test-token');
     assert.deepEqual(JSON.parse(options.body), { subjects: ['CSC 2001'] });
@@ -54,7 +54,7 @@ test('matching lifecycle uses documented responses without inventing acceptance'
   ];
   globalThis.fetch = async (url, options) => {
     const [path, method, status, body] = calls.shift();
-    assert.equal(url, `/api${path}`);
+    assert.equal(url, `https://study.happyxd.dev/api${path}`);
     assert.equal(options.method, method);
     assert.equal(options.headers.Authorization, 'Bearer matching-test-token');
     if (path.endsWith('/messages')) assert.deepEqual(JSON.parse(options.body), { message: 'Hello' });
@@ -71,3 +71,40 @@ test('matching lifecycle uses documented responses without inventing acceptance'
   setToken(null);
   assert.equal(calls.length, 0);
 });
+
+test('picture uploads use multipart and server-relative images resolve against the backend origin', async () => {
+  const { saveProfileMedia } = await import('./profileMedia.js');
+  const { mediaUrl } = await import('./api.js');
+  setToken('upload-token');
+  globalThis.fetch = async (url, options) => {
+    assert.equal(url, 'https://study.happyxd.dev/api/me/picture');
+    assert.equal(options.method, 'POST');
+    assert.equal(options.headers.Authorization, 'Bearer upload-token');
+    assert.equal(options.headers['Content-Type'], undefined);
+    assert.ok(options.body instanceof FormData);
+    assert.equal(options.body.get('file').name, 'photo.png');
+    return new Response(JSON.stringify({ id: 1, pictureUrl: '/uploads/profile-pictures/test.png' }));
+  };
+  const user = await saveProfileMedia({ file: new File(['picture'], 'photo.png', { type: 'image/png' }) });
+  assert.equal(fromUser(user).pictureUrl, 'https://study.happyxd.dev/uploads/profile-pictures/test.png');
+  assert.equal(mediaUrl('https://example.com/photo.png'), 'https://example.com/photo.png');
+  assert.equal('pictureUrl' in profileBody({ name: 'Alex', classes: [], pictureUrl: fromUser(user).pictureUrl }), false);
+  assert.equal(profileBody({ name: 'Alex', classes: [], pictureUrl: null }).pictureUrl, null);
+  assert.equal(await saveProfileMedia({}), null);
+});
+
+test('presence skeleton leaves heartbeat blank and uses the existing offline API', async () => {
+  const { heartbeat, goOffline } = await import('./presence.js');
+  let calls = 0;
+  globalThis.fetch = async (url, options) => {
+    calls++;
+    assert.equal(url, 'https://study.happyxd.dev/api/looking-now');
+    assert.equal(options.method, 'DELETE');
+    return new Response(null, { status: 204 });
+  };
+  await heartbeat({ classes: ['CSC 2001'] }, new AbortController().signal);
+  assert.equal(calls, 0);
+  await goOffline();
+  assert.equal(calls, 1);
+});
+

@@ -111,7 +111,7 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   </div>
 </div>
 {photoError && <p className="error" role="alert">{photoError}</p>}
-<p className="hint profile-media-note">Avatar and upload previews are temporary. Saving is coming soon.</p></section>}
+<p className="hint profile-media-note">Photos save with your profile. Avatar choices are temporary.</p></section>}
         <button className="submit" type="submit" disabled={saving}>{saving ? 'Saving...' : editing ? 'Save changes' : step === 3 ? 'Finish' : 'Next'} <span aria-hidden="true">↗</span></button>
         {!editing && step > 1 && <button className="setup-back" type="button" disabled={saving} onClick={() => { onSetupDraft(profile); goTo(step === 3 ? '/profile-setup/about' : '/profile-setup'); }}>Back</button>}
         {editing && <a className="profile-cancel" href="/home" onClick={navigate}>Cancel changes</a>}

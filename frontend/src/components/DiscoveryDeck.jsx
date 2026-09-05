@@ -1,11 +1,11 @@
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { request, fromUser } from '../api.js';
 import { getMockCandidates } from '../data/mockDiscovery.js';
 import AvatarArt from './AvatarArt.jsx';
 import { AVATARS } from '../config/avatars.js';
 import './DiscoveryDeck.css';
 
-export default function DiscoveryDeck({ session, onEnd }) {
+export default function DiscoveryDeck({ session, onEnd, active = true }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [apiError, setApiError] = useState('');
@@ -74,6 +74,7 @@ export default function DiscoveryDeck({ session, onEnd }) {
   }, [candidate, loading, busy, apiError, session.testDeck, candidates.length]);
 
   useEffect(() => {
+    if (!active) return;
     function keydown(event) {
       if (event.repeat || event.ctrlKey || event.metaKey || event.altKey || event.shiftKey) return;
       if (event.target.closest('input, textarea, select, a, [contenteditable="true"]')) return;
@@ -85,7 +86,7 @@ export default function DiscoveryDeck({ session, onEnd }) {
     }
     window.addEventListener('keydown', keydown);
     return () => window.removeEventListener('keydown', keydown);
-  }, [decide]);
+  }, [decide, active]);
 
   function pointerDown(event) {
     if (!event.isPrimary || event.button !== 0 || lock.current) return;
@@ -120,3 +121,4 @@ export default function DiscoveryDeck({ session, onEnd }) {
     </div></div>
   </section>;
 }
+

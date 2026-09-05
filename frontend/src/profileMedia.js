@@ -1,9 +1,10 @@
-﻿// Backend TODO: provide a multipart photo upload endpoint and persist avatarId
-// on the user record. Return the updated user (including its HTTPS pictureUrl)
-// from that endpoint and expose avatarId in GET /me and public profiles.
-// Never serialize File/blob URLs or profile data into cookies/browser storage.
-export async function saveProfileMedia(_selection) {
-  // Blank API integration until the backend defines the route and payload:
-  // return request(...);
-  return { implemented: false };
+import { request } from './api.js';
+
+export async function saveProfileMedia({ file }) {
+  if (!file) return null;
+  const body = new FormData();
+  body.append('file', file);
+  return request('/me/picture', 'POST', body);
 }
+// Backend TODO: persist avatarId and college year on the user record.
+// Photo bytes are uploaded to backend storage; only its URL belongs in the DB.

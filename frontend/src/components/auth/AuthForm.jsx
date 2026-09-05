@@ -25,7 +25,7 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
     if (signup && (!name.trim() || name.trim().length > 32 || /[\u0000-\u001f\u007f-\u009f]/.test(name))) nextErrors.name = 'Enter a name of 1-32 characters, without control characters.';
     if (!/^[^\s@]+@calpoly\.edu$/i.test(email.trim())) nextErrors.email = 'Enter your Cal Poly email (name@calpoly.edu).';
     if (!password) nextErrors.password = 'Enter your password.';
-    if (signup && (password.trim().length < 12 || password.trim().length > 200)) nextErrors.password = 'Use 12-200 characters.';
+    if (signup && (password.trim().length < 8 || password.trim().length > 200)) nextErrors.password = 'Use 8-200 characters.';
     if (signup && (!confirmation || confirmation !== password)) nextErrors.confirmation = 'Your passwords must match.';
     setErrors(nextErrors);
     setApiError('');
@@ -57,7 +57,7 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
         <input id="email" name="email" type="email" placeholder="you@calpoly.edu" autoComplete="username" autoCapitalize="none" spellCheck="false" value={email} onChange={update(setEmail, 'email')} required aria-invalid={Boolean(errors.email)} aria-describedby={errors.email ? 'email-error' : 'email-hint'} />
         {errors.email ? <p className="error" id="email-error">{errors.email}</p> : <p className="hint" id="email-hint">For Cal Poly San Luis Obispo students.</p>}
       </div>
-      <PasswordField id="password" label="Password" value={password} onChange={update(setPassword, 'password')} autoComplete={signup ? 'new-password' : 'current-password'} error={errors.password} hint={signup ? 'Use 12-200 characters.' : undefined} />
+      <PasswordField id="password" label="Password" value={password} onChange={update(setPassword, 'password')} autoComplete={signup ? 'new-password' : 'current-password'} error={errors.password} hint={signup ? 'Use 8-200 characters.' : undefined} />
       {signup && <PasswordField id="confirmation" label="Confirm password" value={confirmation} onChange={update(setConfirmation, 'confirmation')} autoComplete="new-password" error={errors.confirmation} />}
       <button className="submit" type="submit" disabled={busy}>{busy ? 'Please wait...' : signup ? 'Create account' : 'Log in'}<span aria-hidden="true">↗</span></button>
       {apiError && <p className="error" role="alert">{apiError}</p>}

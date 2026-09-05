@@ -10,11 +10,21 @@ export default function ChatPanel({ profile, initialChatId }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const sequence = useRef(0);
+  function handleChatError(error, id) {
+    if (error.code === 'not_chat_member' || error.status === 404) {
+      setChat(previous => previous?.id === id ? null : previous);
+      setChats(previous => previous.filter(item => item.id !== id));
+      setMatches([]);
+      setBody('');
+      setError('This chat is no longer available. Chats expire after 24 hours; you can find another study buddy from Home.');
+    } else setError(error.message);
+  }
   async function refresh() {
     setLoading(true); setError('');
     try {
       const [c, m] = await Promise.all([request('/chats'), request('/matches')]);
       setChats(c.chats); setMatches(m.matches);
+      setChat(previous => previous && c.chats.some(item => item.id === previous.id) ? previous : null);
     } catch (error) { setError(error.message); }
     finally { setLoading(false); }
   }
@@ -27,8 +37,7 @@ export default function ChatPanel({ profile, initialChatId }) {
       if (current !== sequence.current) return;
       setChat(previous => older ? { ...data, messages: [...previous.messages, ...data.messages] } : data);
       if (!older) setBody('');
-    } catch (error) { setError(error.message); }
-    finally { if (current === sequence.current) setLoading(false); }
+    } catch (error) { if (current === sequence.current) handleChatError(error, id); } finally { if (current === sequence.current) setLoading(false); }
   }
   useEffect(() => { if (initialChatId) open(initialChatId); }, [initialChatId]);
   useEffect(() => {
@@ -45,7 +54,7 @@ export default function ChatPanel({ profile, initialChatId }) {
           data.messages.forEach(message => messages.set(message.id, message));
           return { ...previous, messages: [...messages.values()].sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id) };
         });
-      } catch { /* Manual refresh displays errors; retry polling. */ }
+      } catch (error) { if (active && (error.code === 'not_chat_member' || error.status === 404)) { handleChatError(error, id); return; } }
       if (active) timer = setTimeout(poll, 5000);
     }
     timer = setTimeout(poll, 5000);
@@ -60,8 +69,7 @@ export default function ChatPanel({ profile, initialChatId }) {
       const message = await request(`/chats/${id}/messages`, 'POST', { message: body.trim() });
       setChat(previous => previous?.id === id ? { ...previous, messages: [message, ...previous.messages.filter(item => item.id !== message.id)] } : previous);
       setBody('');
-    } catch (error) { setError(error.message); }
-    finally { setBusy(false); }
+    } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
   }
-  return <section className="home-session"><h2>Matches & chats</h2><button className="home-secondary" disabled={loading || busy} onClick={refresh}>Refresh matches</button>{loading && <p role="status">Loading…</p>}{error && <p className="error" role="alert">{error}</p>}<p>{matches.length ? `Matched with ${matches.map(match => match.user.username).join(', ')}` : 'No accepted matches yet. A mutual request opens a chat.'}</p><div className="home-form-actions">{chats.map(item => <button className="home-secondary" key={item.id} disabled={busy || loading} onClick={() => open(item.id)}>Chat #{item.id}{item.latestMessage ? ` · ${item.latestMessage.slice(0, 40)}` : ''}</button>)}</div>{chat && <div><h3>Chat #{chat.id}</h3><button disabled={busy || loading} onClick={() => open(chat.id)}>Refresh messages</button>{chat.nextCursor && <button disabled={busy || loading} onClick={() => open(chat.id, true)}>Load older messages</button>}<ol aria-label="Messages">{[...chat.messages].reverse().map(message => <li key={message.id} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '16px 0' }}><strong>{message.senderUserId === profile.id ? 'You' : 'Study buddy'}: </strong>{message.body}<small style={{ display: 'block' }}>{new Date(message.createdAt).toLocaleString()}</small></li>)}</ol><form onSubmit={send}><label htmlFor="chat-message">Message</label><textarea id="chat-message" disabled={busy} value={body} onChange={event => setBody(event.target.value)} maxLength={2000} rows={3} style={{ width: '100%', font: 'inherit' }} /><button className="home-primary" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send message'}</button></form></div>}</section>;
+  return <section className="home-session"><h2>Matches & chats</h2><p className="hint">Chats and matches expire 24 hours after creation.</p><button className="home-secondary" disabled={loading || busy} onClick={refresh}>Refresh matches</button>{loading && <p role="status">Loading…</p>}{error && <p className="error" role="alert">{error}</p>}<p>{matches.length ? `Matched with ${matches.map(match => match.user.username).join(', ')}` : 'No accepted matches yet. A mutual request opens a chat.'}</p><div className="home-form-actions">{chats.map(item => <button className="home-secondary" key={item.id} disabled={busy || loading} onClick={() => open(item.id)}>Chat #{item.id}{item.latestMessage ? ` · ${item.latestMessage.slice(0, 40)}` : ''}</button>)}</div>{chat && <div><h3>Chat #{chat.id}</h3><button disabled={busy || loading} onClick={() => open(chat.id)}>Refresh messages</button>{chat.nextCursor && <button disabled={busy || loading} onClick={() => open(chat.id, true)}>Load older messages</button>}<ol aria-label="Messages">{[...chat.messages].reverse().map(message => <li key={message.id} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '16px 0' }}><strong>{message.senderUserId === profile.id ? 'You' : 'Study buddy'}: </strong>{message.body}<small style={{ display: 'block' }}>{new Date(message.createdAt).toLocaleString()}</small></li>)}</ol><form onSubmit={send}><label htmlFor="chat-message">Message</label><textarea id="chat-message" disabled={busy} value={body} onChange={event => setBody(event.target.value)} maxLength={2000} rows={3} style={{ width: '100%', font: 'inherit' }} /><button className="home-primary" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send message'}</button></form></div>}</section>;
 }

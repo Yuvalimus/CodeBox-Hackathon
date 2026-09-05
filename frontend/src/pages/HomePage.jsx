@@ -1,3 +1,4 @@
+﻿import { goOffline } from '../presence.js';
 import { request } from '../api.js';
 import AvatarArt from '../components/AvatarArt.jsx';
 import React, { useEffect, useRef, useState } from 'react';
@@ -7,13 +8,13 @@ import { PRODUCT_NAME } from '../config/brand.js';
 import { AVATARS } from '../config/avatars.js';
 import './HomePage.css';
 
-export default function HomePage({ profile, navigate, onLogout, loggingOut, logoutError }) {
+export default function HomePage({ profile, navigate, onLogout, loggingOut, logoutError, session, setSession, active = true }) {
   const [testDeck, setTestDeck] = useState(false);
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [selected, setSelected] = useState([]);
   const [location, setLocation] = useState('');
-  const [session, setSession] = useState(null);
+
   const [error, setError] = useState('');
   const [photo, setPhoto] = useState('');
   const heading = useRef(null);
@@ -36,6 +37,8 @@ export default function HomePage({ profile, navigate, onLogout, loggingOut, logo
     setBusy(true); setError('');
     try {
       if (!testDeck) {
+      const { chats } = await request('/chats');
+      if (chats.length) { setError('You already have an active match. Open Matches & chats to continue. Chats last 24 hours.'); return; }
       await request('/me', 'PATCH', { studying: selected, preferredStudyLocations: [location.trim() || 'Kennedy Library'] });
       await request('/looking-now', 'PUT', { subjects: selected });
       }
@@ -50,7 +53,8 @@ export default function HomePage({ profile, navigate, onLogout, loggingOut, logo
     <main className={session ? "home-main" : "home-launch-stage"}>
       {!session && !choosing && <button ref={launchButton} className="home-launch-button" onClick={() => { setChoosing(true); setError(''); }}><span>Find a study buddy</span></button>}
       {choosing && <section className="home-session home-session-reveal" aria-labelledby="session-title"><h2 id="session-title" ref={heading} tabIndex={-1}>What are we studying?</h2><form onSubmit={start}><fieldset><legend>Classes to study</legend><div className="home-checks">{profile.classes.map((course) => <label key={course}><input type="checkbox" checked={selected.includes(course)} onChange={(event) => { setSelected(event.target.checked ? [...selected, course] : selected.filter((item) => item !== course)); setError(''); }} />{course}</label>)}</div></fieldset>{!profile.classes.length && <p>Add a class in <a href="/profile" onClick={navigate}>your profile</a> first.</p>}{error && <p className="error" role="alert">{error}</p>}<label htmlFor="study-location">Study location <span>(optional)</span></label><input id="study-location" maxLength={100} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Kennedy Library" aria-describedby="location-hint" /><p id="location-hint" className="hint">Leave this blank and we’ll use Kennedy Library.</p><label className="home-test-option"><input type="checkbox" checked={testDeck} disabled={busy} onChange={event => setTestDeck(event.target.checked)} /> Use looping test profiles</label><div className="home-form-actions"><button className="home-primary" type="submit" disabled={busy}>{busy ? 'Starting...' : 'Start looking'} <span aria-hidden="true">↗</span></button><button type="button" className="home-secondary" disabled={busy} onClick={() => { setChoosing(false); requestAnimationFrame(() => launchButton.current?.focus()); }}>Cancel</button></div></form></section>}
-      {session && <DiscoveryDeck session={session} onEnd={async () => { if (!session.testDeck) await request('/looking-now', 'DELETE'); setSession(null); setSelected([]); setLocation(''); }} />}
+      {session && <DiscoveryDeck active={active} session={session} onEnd={async () => { if (!session.testDeck) await goOffline(); setSession(null); setSelected([]); setLocation(''); }} />}
     </main>
   </div>;
 }
+

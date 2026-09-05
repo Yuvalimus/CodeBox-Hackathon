@@ -1,4 +1,4 @@
-# Front-end guidelines
+﻿# Front-end guidelines
 
 ## Product
 
@@ -19,7 +19,7 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.
 - Swipe left passes on a candidate; swipe right sends a match request.
 - Requests should be silent and prioritize the requester in the recipient's deck; ranking belongs to the backend. The frontend preserves server order. The backend now prioritizes incoming requests; refresh the deck while preserving server order.
-- Mutual matches show a celebration page and open the server-created chat. Both users should go offline. Until the backend handles both presences atomically, each active client deletes only its own presence after detecting a new match.
+- Mutual matches open the server-created chat immediately when swiping. On other pages, show a large clickable match banner without interrupting the current page. Removal from the matching pool belongs to the backend; do not send offline on matching. Keep looking sessions and the deck across profile/chat navigation; Stop looking explicitly goes offline. Heartbeat integration remains a blank adapter until its backend contract exists.
 - Discovery displays one candidate at a time. Support A/Left Arrow to pass and D/Right Arrow to request, alongside pointer swipes and labeled buttons. Use backend recommendations filtered by online presence. Requests remain pending until the backend confirms a mutual match.
 - Make the request status clear. Sending a request is not itself an accepted match.
 - After a match is accepted, show a chat between the matched students.
@@ -60,3 +60,4 @@ The product name is undecided. `KennedyMatch` is only a candidate, not an approv
 - Prefer straightforward, reusable components and plain student-facing language.
 - Keep changes focused on the requested front-end work.
 - Update this document when product decisions are confirmed.
+
