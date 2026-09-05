@@ -117,7 +117,7 @@ invalidate it after decisions/profile updates, and cap cache size. It must be sa
 For a candidate `c` and user `u`:
 
 ```text
-score = 0.70 * studyingOverlap + 0.15 * timeOverlap + 0.15 * yearSimilarity
+score = 0.70 * studyingClassOverlap + 0.15 * timeOverlap + 0.15 * yearSimilarity
 ```
 
 - `studyingOverlap`: Jaccard overlap of `u.studying` and `c.studying`; use `0` if both empty.
