@@ -15,7 +15,7 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Swipe left passes on a candidate; swipe right sends a match request.
 - Make the request status clear. Sending a request is not itself an accepted match.
 - After a match is accepted, show a chat between the matched students.
-- School-email verification is the intended approach, pending final confirmation. Do not choose an authentication provider or claim verification is enforced by a front-end prototype.
+- Login and signup use email and password only. Accept only `@calpoly.edu` email addresses. Leave API calls unimplemented for now; frontend validation does not verify email ownership or authenticate users. Do not choose an authentication provider or claim verification is enforced by a front-end prototype.
 - The primary brand color is `#CCDDB7`.
 - Additional brand colors have not been selected. Keep the palette easy to extend and treat any necessary neutral colors as provisional.
 
