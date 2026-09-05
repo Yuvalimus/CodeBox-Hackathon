@@ -29,8 +29,4 @@ New pages can use their own layouts; the auth layout is only used by the login a
 
 ## Profile setup preview
 
-### Discovery testing
-
-From the homepage, choose Find a buddy, select classes, and Start looking. The deck shows 11 fictional online students one at a time. Swipe left or press A/Left Arrow to pass; swipe right or press D/Right Arrow to request. Labeled buttons support the same actions. Keyboard shortcuts ignore held-key repeats and pause on interactive controls. Requests appear as pending test requests, never accepted matches. Stop looking ends the preview; starting again creates a fresh deck. Mock classes are seeded from your selected classes and sorted by shared-class count. No requests are delivered and no real online presence is created.
-
 Sign up with a name, a Cal Poly email, and matching passwords to open profile setup. Add at least one class using a subject and four-digit number, such as `CSC 2001`; lowercase and missing spaces are normalized. Duplicate codes are rejected. This checks formatting only, not catalog membership. Major, bio, profile picture, and year (First through Fifth+) are optional. Finish profile opens `/home`. My profile opens `/profile`, where edits (including name) can be saved or canceled. Four color avatars are available as alternatives to a photo. Find a buddy opens a multiple-checkbox class selector and optional location field, which defaults to Kennedy Library when blank. Starting a test session displays a local summary; discovery is not connected yet. Profile data and the local photo preview stay in memory and reset on refresh. Opening profile setup without a test signup links back to signup.
