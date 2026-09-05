@@ -10,6 +10,8 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Profile setup requires at least one current class, entered as a subject and four-digit number (for example `CSC 2001`). Major is optional.
 - Students may optionally provide a profile picture, bio, and year (First, Second, Third, Fourth, or Fifth+). The profile and candidate cards must work without these optional fields. A preferred study location remains optional for future profile editing.
 - Do not include availability schedules: study sessions are initiated in the moment.
+- Completed profile setup opens `/home`. Users can edit all profile fields, including their required name, through My profile. Four named color avatars are available as photo alternatives, with artwork to be added later.
+- The homepage Find a buddy flow requires selecting one or more existing classes using checkboxes. Study location is optional and defaults to Kennedy Library when blank. Keep all API calls unimplemented for now.
 - Before going online, students select which of their existing classes they want to study for in the current session. Keep this session selection separate from their full class list.
 - Students can explicitly indicate that they are online and looking for a study buddy, and go offline when finished.
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.

@@ -3,6 +3,8 @@ import LoginPage from './pages/LoginPage.jsx';
 import LandingPage from './pages/LandingPage.jsx';
 import SignupPage from './pages/SignupPage.jsx';
 import ProfileSetupPage from './pages/ProfileSetupPage.jsx';
+import HomePage from './pages/HomePage.jsx';
+import EditProfilePage from './pages/EditProfilePage.jsx';
 import NotFoundPage from './pages/NotFoundPage.jsx';
 import { PRODUCT_NAME } from './config/brand.js';
 
@@ -12,6 +14,8 @@ const routes = {
   '/login': { component: LoginPage, title: 'Log in' },
   '/signup': { component: SignupPage, title: 'Sign up' },
   '/profile-setup': { component: ProfileSetupPage, title: 'Set up your profile' },
+  '/home': { component: HomePage, title: 'Home' },
+  '/profile': { component: EditProfilePage, title: 'Edit profile' },
 };
 const notFoundRoute = { component: NotFoundPage, title: 'Page not found' };
 
@@ -42,11 +46,17 @@ export default function App() {
   }
 
   function onSignup({ name }) {
-    setProfile({ name, classes: [], major: '', bio: '', year: '', photo: null });
+    setProfile({ name, classes: [], major: '', bio: '', year: '', photo: null, avatar: 'sage' });
     window.history.pushState({}, '', '/profile-setup');
     setPathname('/profile-setup');
     window.scrollTo(0, 0);
   }
 
-  return <Page navigate={navigate} onSignup={onSignup} profile={profile} onProfileChange={setProfile} />;
+  function goTo(path) {
+    window.history.pushState({}, '', path);
+    setPathname(path);
+    window.scrollTo(0, 0);
+  }
+
+  return <Page navigate={navigate} goTo={goTo} onSignup={onSignup} profile={profile} onProfileChange={setProfile} />;
 }
