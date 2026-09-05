@@ -16,6 +16,7 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Students can explicitly indicate that they are online and looking for a study buddy, and go offline when finished.
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.
 - Swipe left passes on a candidate; swipe right sends a match request.
+- Discovery displays one candidate at a time. Support A/Left Arrow to pass and D/Right Arrow to request, alongside pointer swipes and labeled buttons. Use fictional test profiles while APIs are unimplemented; requests remain visibly pending and are not real deliveries.
 - Make the request status clear. Sending a request is not itself an accepted match.
 - After a match is accepted, show a chat between the matched students.
 - Login and signup use email and password only. Accept only `@calpoly.edu` email addresses. Leave API calls unimplemented for now; frontend validation does not verify email ownership or authenticate users. Do not choose an authentication provider or claim verification is enforced by a front-end prototype.
