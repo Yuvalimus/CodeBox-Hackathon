@@ -18,7 +18,7 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Students can explicitly indicate that they are online and looking for a study buddy, and go offline when finished.
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.
 - Swipe left passes on a candidate; swipe right sends a match request.
-- Requests should be silent and prioritize the requester in the recipient's deck; ranking belongs to the backend. The frontend preserves server order. Current backend priority support is missing; see BACKEND_HANDOFF.md.
+- Requests should be silent and prioritize the requester in the recipient's deck; ranking belongs to the backend. The frontend preserves server order. The backend now prioritizes incoming requests; refresh the deck while preserving server order.
 - Mutual matches show a celebration page and open the server-created chat. Both users should go offline. Until the backend handles both presences atomically, each active client deletes only its own presence after detecting a new match.
 - Discovery displays one candidate at a time. Support A/Left Arrow to pass and D/Right Arrow to request, alongside pointer swipes and labeled buttons. Use backend recommendations filtered by online presence. Requests remain pending until the backend confirms a mutual match.
 - Make the request status clear. Sending a request is not itself an accepted match.

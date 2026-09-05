@@ -1,3 +1,4 @@
+import { saveProfileMedia } from './profileMedia.js';
 import { request, setToken, hasToken, authenticationBody, fromUser, profileBody } from './api.js';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import MatchWatcher from './components/MatchWatcher.jsx';
@@ -30,6 +31,8 @@ const routes = {
 const notFoundRoute = { component: NotFoundPage, title: 'Page not found' };
 
 export default function App() {
+  const [logoutError, setLogoutError] = useState('');
+  const [loggingOut, setLoggingOut] = useState(false);
   const [setupDraft, setSetupDraft] = useState(null);
   const [match, setMatch] = useState(null);
   const handledChats = useRef(new Set());
@@ -77,8 +80,22 @@ export default function App() {
     setProfile(fromUser(result.user, { name }));
     goTo(result.user.classes?.length ? '/home' : '/profile-setup');
   }
+  async function logout() {
+    if (loggingOut) return;
+    setLoggingOut(true); setLogoutError('');
+    try {
+      await request('/looking-now', 'DELETE');
+      await request('/logout', 'POST');
+      setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
+      goTo('/login');
+    } catch(error) { setLogoutError(error.message); }
+    finally { setLoggingOut(false); }
+  }
   async function saveProfile(draft) {
-    const user = await request('/me', 'PATCH', profileBody(draft));
+    const current = await request('/me');
+    const user = await request('/me', 'PATCH', profileBody({ ...draft, studying: current.studying }));
+    // Media stays a temporary preview until the database API is implemented.
+    await saveProfileMedia({ avatarId: draft.avatar, file: draft.photo });
     setProfile(fromUser(user, draft));
   }
   useEffect(() => {
@@ -100,5 +117,5 @@ export default function App() {
   }, []);
   if (loading) return <main className="home-missing" role="status">Loading your profile...</main>;
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
-  return <><MatchWatcher userId={profile?.id} onMatch={onMatch} /><Page setupDraft={setupDraft} onSetupDraft={setSetupDraft} match={match} navigate={navigate} goTo={goTo} onSignup={(values) => authenticate(values, true)} onLogin={(values) => authenticate(values, false)} profile={profile} onProfileChange={saveProfile} /></>;
+  return <><MatchWatcher userId={profile?.id} onMatch={onMatch} /><Page onLogout={logout} loggingOut={loggingOut} logoutError={logoutError} setupDraft={setupDraft} onSetupDraft={setSetupDraft} match={match} navigate={navigate} goTo={goTo} onSignup={(values) => authenticate(values, true)} onLogin={(values) => authenticate(values, false)} profile={profile} onProfileChange={saveProfile} /></>;
 }

@@ -22,15 +22,10 @@ export async function request(path, method = 'GET', body) {
   return data;
 }
 
-// Backend login accepts only username. Stable email-derived IDs preserve the email-only UI.
-export async function usernameForEmail(email) {
-  const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email.trim().toLowerCase()));
-  return `cp_${Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 29)}`;
-}
 export async function authenticationBody({ email, password, name }, signup) {
   if (signup) {
     return {
-      username: name,
+      username: name.trim(),
       password: password.trim(),
       email: email.trim().toLowerCase(),
     };
@@ -42,8 +37,8 @@ export async function authenticationBody({ email, password, name }, signup) {
   };
 }
 export function fromUser(user, local = {}) {
-  return { ...user, name: local.name || user.username, year: local.year || '', avatar: local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], major: user.major || '', bio: user.bio || '' };
+  return { ...user, name: user.username || local.name, year: local.year || '', avatar: local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], major: user.major || '', bio: user.bio || '' };
 }
 export function profileBody(profile) {
-  return { classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, pictureUrl: profile.pictureUrl || null };
+  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, pictureUrl: profile.pictureUrl || null };
 }

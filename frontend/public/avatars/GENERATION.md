@@ -1,0 +1,7 @@
+# Avatar artwork
+
+Generated with the built-in image generation tool, using avatar-reference.png as the reference. The original is preserved. avatars-hq.png is a 1254 × 1254 sprite sheet with four 627 × 627 portraits.
+
+## Prompt
+
+Use case: identity-preserve. Recreate the FOUR illustrated student portraits in the supplied screenshot as a single high-resolution 2 by 2 avatar sprite sheet, 2048x2048. Each quadrant is exactly 1024x1024, edge-to-edge pale sage background, no gutters, borders, rounded corners or UI. Preserve each original person's identity, face shape, hairstyle, skin tone, expression, gaze to viewer's right, clothing and drawing style as closely as possible. Top left: woman with black messy bun, loose curled strands, gold hoop earrings, dark teal CAL POLY hoodie. Top right: smiling young man with tousled dark brown curly hair, light sage hoodie and black backpack straps. Bottom left: smiling dark-skinned young man with short textured black curls, rectangular black glasses, dark teal crewneck and backpack strap. Bottom right: woman with long dark wavy hair, teal CAL POLY baseball cap, cream top, holding backpack strap. Same warm ink outlines, subtle painterly shading and muted palette as the reference; sharpen linework and restore fine detail at high resolution, do not redesign or photorealize. Each portrait chest-up centered with entire head and hat comfortably inside its quadrant. Text only CAL POLY on original clothing. Remove all screenshot UI, title, selection check and buttons.

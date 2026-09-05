@@ -22,7 +22,7 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
     event.preventDefault();
     if (busy) return;
     const nextErrors = {};
-    if (signup && !name.trim()) nextErrors.name = 'Enter your name.';
+    if (signup && (!name.trim() || name.trim().length > 32 || /[\u0000-\u001f\u007f-\u009f]/.test(name))) nextErrors.name = 'Enter a name of 1-32 characters, without control characters.';
     if (!/^[^\s@]+@calpoly\.edu$/i.test(email.trim())) nextErrors.email = 'Enter your Cal Poly email (name@calpoly.edu).';
     if (!password) nextErrors.password = 'Enter your password.';
     if (signup && (password.trim().length < 12 || password.trim().length > 200)) nextErrors.password = 'Use 12-200 characters.';
@@ -49,7 +49,7 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
     <form onSubmit={submit} noValidate>
       {signup && <div className="field">
         <label htmlFor="name">Name</label>
-        <input id="name" name="name" autoComplete="name" value={name} onChange={update(setName, 'name')} required aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
+        <input id="name" name="name" maxLength={32} autoComplete="name" value={name} onChange={update(setName, 'name')} required aria-invalid={Boolean(errors.name)} aria-describedby={errors.name ? 'name-error' : undefined} />
         {errors.name && <p className="error" id="name-error">{errors.name}</p>}
       </div>}
       <div className="field">
