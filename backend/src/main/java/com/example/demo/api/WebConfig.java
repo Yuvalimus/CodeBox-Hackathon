@@ -11,15 +11,15 @@ import java.util.Arrays;
 public class WebConfig implements WebMvcConfigurer {
     private final String[] origins;
 
-    public WebConfig(@Value("${app.cors-origins}") String origings) {
-        this.origins = Arrays.stream(origings.split(",")).map(String::trim).toArray(String[]::new);
+    public WebConfig(@Value("${app.cors-origins}") String configuredOrigins) {
+        this.origins = Arrays.stream(configuredOrigins.split(",")).map(String::trim).filter(origin -> !origin.isEmpty()).toArray(String[]::new);
     }
 
     public void addCorsMappings(CorsRegistry registry) {
         registry
             .addMapping("/**")
             .allowedOrigins(origins)
-            .allowedMethods("GET", "POST", "PATCH", "PUT", "DELETE")
+            .allowedMethods("GET", "POST", "PATCH", "PUT", "DELETE", "OPTIONS")
             .allowedHeaders("Authorization", "Content-Type");
     }
 }

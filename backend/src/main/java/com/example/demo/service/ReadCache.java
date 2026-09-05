@@ -40,6 +40,9 @@ public final class ReadCache {
     }
 
     public <T> void put(Key<T> cacheKey, T value, Duration timeToLive) {
+        if (timeToLive.isNegative() || timeToLive.isZero()) {
+            throw new IllegalArgumentException("Cache TTL must be positive");
+        }
         entries.put(cacheKey.value(), new CacheEntry(value, Instant.now().plus(timeToLive)));
     }
 
