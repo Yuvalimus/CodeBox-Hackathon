@@ -22,8 +22,8 @@ import java.util.TreeSet;
 
 @Service
 public class UserService {
-    private static final Set<String> RESERVED_USERNAMES = Set.of("admin", "support", "me");
     private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "studyTimes", "preferredStudyLocations");
+    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "pictureUrl", "gradYear", "major", "classes", "studying", "studyTimes", "preferredStudyLocations");
     private static final Duration PROFILE_CACHE_TTL = Duration.ofMinutes(15);
     private static final String PROFILE_CACHE_PREFIX = "profile:";
     private final JdbcTemplate jdbcTemplate;
@@ -109,38 +109,52 @@ public class UserService {
 
     @Transactional
     public long register(Map<String, Object> requestBody) {
-        String username = requiredText(requestBody, "username", 3, 32).toLowerCase(Locale.ROOT);
-        String email = requiredText(requestBody, "email", 6, 254).toLowerCase(Locale.ROOT);
+        String username = username(requestBody.get("username"));
+        String email = email(requestBody.get("email"));
         String password = requiredText(requestBody, "password", 12, 200);
-        validateRegistration(username, email);
+        validateRegistration(email);
+        ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
             jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,picture_url,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(requestBody, "bio", 500), pictureUrl(requestBody.get("pictureUrl")), optionalText(requestBody, "major", 100), graduationYear(requestBody.get("gradYear")), timestamp, timestamp);
         } catch (DataIntegrityViolationException exception) {
-            throw new ApiException(HttpStatus.CONFLICT, "duplicate_user", "Username or email already exists");
+            throw emailAlreadyUsed();
         }
-        Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE username=?", Long.class, username);
+        Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE email=?", Long.class, email);
         if (userId == null) throw new IllegalStateException("Created user could not be loaded");
         replaceProfileArrays(userId, requestBody);
         invalidateUserReads(userId);
         return userId;
     }
 
-    public long login(String username, String password) {
+    public long login(String email, String password) {
         Credentials credentials;
         try {
-            credentials = jdbcTemplate.queryForObject("SELECT id,password_hash FROM users WHERE username=?", (resultSet, rowNumber) -> new Credentials(resultSet.getLong("id"), resultSet.getString("password_hash")), username.trim().toLowerCase(Locale.ROOT));
+            credentials = jdbcTemplate.queryForObject("SELECT id,password_hash FROM users WHERE email=?", (resultSet, rowNumber) -> new Credentials(resultSet.getLong("id"), resultSet.getString("password_hash")), email(email));
         } catch (EmptyResultDataAccessException exception) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid username or password");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
         }
         if (credentials == null || !passwordEncoder.matches(password, credentials.passwordHash()))
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid username or password");
+            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
         return credentials.userId();
     }
 
     @Transactional
     public void update(long userId, Map<String, Object> requestBody) {
+        if (requestBody.isEmpty() || requestBody.keySet().stream().anyMatch(field -> !PROFILE_FIELDS.contains(field)))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_profile", "Request contains no editable profile fields");
         String timestamp = Instant.now().toString();
+        if (requestBody.containsKey("username"))
+            jdbcTemplate.update("UPDATE users SET username=?,updated_at=? WHERE id=?", username(requestBody.get("username")), timestamp, userId);
+        if (requestBody.containsKey("email")) {
+            String email = email(requestBody.get("email"));
+            ensureEmailAvailable(email, userId);
+            try {
+                jdbcTemplate.update("UPDATE users SET email=?,updated_at=? WHERE id=?", email, timestamp, userId);
+            } catch (DataIntegrityViolationException exception) {
+                throw emailAlreadyUsed();
+            }
+        }
         if (requestBody.containsKey("bio"))
             jdbcTemplate.update("UPDATE users SET bio=?,updated_at=? WHERE id=?", optionalText(requestBody, "bio", 500), timestamp, userId);
         if (requestBody.containsKey("pictureUrl"))
@@ -157,11 +171,39 @@ public class UserService {
         invalidateUserReads(userId);
     }
 
-    private void validateRegistration(String username, String email) {
-        if (!username.matches("[a-z0-9_-]+") || RESERVED_USERNAMES.contains(username))
-            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_username", "Username contains unsupported characters");
+    private void validateRegistration(String email) {
         if (!email.matches("^[^\\s@]+@calpoly\\.edu$"))
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_email", "A valid @calpoly.edu email is required");
+    }
+
+    private static String username(Object rawValue) {
+        if (!(rawValue instanceof String)) throwInvalid("username", "username is invalid");
+        String value = ((String) rawValue).trim();
+        if (value.isEmpty() || value.length() > 32) throwInvalid("username", "username is invalid");
+        return value;
+    }
+
+    private static String email(Object rawValue) {
+        if (!(rawValue instanceof String)) throwInvalid("email", "email is invalid");
+        String value = ((String) rawValue).trim().toLowerCase(Locale.ROOT);
+        if (value.length() < 6 || value.length() > 254) throwInvalid("email", "email is invalid");
+        if (!value.matches("^[^\\s@]+@calpoly\\.edu$"))
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_email", "A valid @calpoly.edu email is required");
+        return value;
+    }
+
+    private void ensureEmailAvailable(String email, Long exceptUserId) {
+        String query = exceptUserId == null
+            ? "SELECT COUNT(*) FROM users WHERE email=?"
+            : "SELECT COUNT(*) FROM users WHERE email=? AND id<>?";
+        Integer count = exceptUserId == null
+            ? jdbcTemplate.queryForObject(query, Integer.class, email)
+            : jdbcTemplate.queryForObject(query, Integer.class, email, exceptUserId);
+        if (count != null && count > 0) throw emailAlreadyUsed();
+    }
+
+    private ApiException emailAlreadyUsed() {
+        return new ApiException(HttpStatus.CONFLICT, "email_already_used", "This email has already been used");
     }
 
     private void replaceProfileArrays(long userId, Map<String, Object> profileData) {

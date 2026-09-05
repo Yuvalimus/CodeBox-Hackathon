@@ -21,6 +21,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -75,7 +76,7 @@ public class StudyController {
 
     @PostMapping("/login")
     public Map<String, Object> login(@RequestBody LoginRequest request) {
-        long id = users.login(request.username(), request.password());
+        long id = users.login(request.email(), request.password());
         return Map.of("token", jwt.issue(id), "user", users.profile(id));
     }
 
@@ -160,7 +161,7 @@ public class StudyController {
                                       String major, Integer gradYear, List<String> classes, List<String> studying,
                                       List<Integer> studyTimes, List<String> preferredStudyLocations) {
         public Map<String, Object> toServiceRequest() {
-            Map<String, Object> values = new LinkedHashMap<>();
+            Map<String, Object> values = new HashMap<>();
             values.put("username", username);
             values.put("password", password);
             values.put("email", email);
@@ -176,7 +177,7 @@ public class StudyController {
         }
     }
 
-    public record LoginRequest(String username, String password) {
+    public record LoginRequest(String email, String password) {
     }
 
     public record MessageRequest(String message) {

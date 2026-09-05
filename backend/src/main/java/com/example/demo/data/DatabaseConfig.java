@@ -26,10 +26,21 @@ public class DatabaseConfig {
         try (var connection = dataSource.getConnection()) {
             connection.createStatement().execute("PRAGMA foreign_keys = ON");
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V1__initial_schema.sql"));
+            if (usernameHasUniqueConstraint(connection)) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V2__allow_duplicate_usernames.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
         return dataSource;
+    }
+
+    private boolean usernameHasUniqueConstraint(java.sql.Connection connection) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='users'")) {
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getString(1).matches("(?is).*username\\s+TEXT\\s+NOT\\s+NULL\\s+COLLATE\\s+NOCASE\\s+UNIQUE.*");
+            }
+        }
     }
 
     @Bean
