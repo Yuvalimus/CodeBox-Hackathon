@@ -13,11 +13,14 @@ import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 @Service
 public class JwtService {
     private final String secret, issuer, audience;
     private final ObjectMapper json;
+    private final ConcurrentMap<String, Long> revokedTokens = new ConcurrentHashMap<>();
 
     public JwtService(@Value("${app.jwt-secret}") String s, @Value("${app.jwt-issuer}") String i, @Value("${app.jwt-audience}") String a, ObjectMapper j) {
         secret = s;
@@ -43,13 +46,39 @@ public class JwtService {
             String[] x = token.split("\\.");
             if (x.length != 3 || !constant(sign(x[0] + "." + x[1]), x[2])) throw bad();
             Map<String, Object> p = json.readValue(Base64.getUrlDecoder().decode(x[1]), Map.class);
-            if (!issuer.equals(p.get("iss")) || !audience.equals(p.get("aud")) || ((Number) p.get("exp")).longValue() < Instant.now().getEpochSecond())
+            long expiration = ((Number) p.get("exp")).longValue();
+            if (revokedTokens.containsKey(tokenFingerprint(token)) || !issuer.equals(p.get("iss")) || !audience.equals(p.get("aud")) || expiration < Instant.now().getEpochSecond())
                 throw bad();
             return Long.parseLong((String) p.get("sub"));
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
             throw bad();
+        }
+    }
+
+    /** Revokes this specific access token until it would naturally expire. */
+    @SuppressWarnings("unchecked")
+    public void revoke(String token) {
+        verify(token);
+        try {
+            String[] parts = token.split("\\.");
+            Map<String, Object> payload = json.readValue(Base64.getUrlDecoder().decode(parts[1]), Map.class);
+            long expiration = ((Number) payload.get("exp")).longValue();
+            revokedTokens.put(tokenFingerprint(token), expiration);
+            long now = Instant.now().getEpochSecond();
+            revokedTokens.entrySet().removeIf(entry -> entry.getValue() < now);
+        } catch (Exception exception) {
+            throw bad();
+        }
+    }
+
+    private String tokenFingerprint(String token) {
+        try {
+            byte[] hash = java.security.MessageDigest.getInstance("SHA-256").digest(token.getBytes(StandardCharsets.UTF_8));
+            return Base64.getUrlEncoder().withoutPadding().encodeToString(hash);
+        } catch (java.security.NoSuchAlgorithmException exception) {
+            throw new IllegalStateException(exception);
         }
     }
 

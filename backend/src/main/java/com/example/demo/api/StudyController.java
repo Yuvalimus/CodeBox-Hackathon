@@ -80,6 +80,13 @@ public class StudyController {
         return Map.of("token", jwt.issue(id), "user", users.profile(id));
     }
 
+    @PostMapping("/logout")
+    public ResponseEntity<Void> logout(HttpServletRequest request) {
+        String authorizationHeader = request.getHeader("Authorization");
+        jwt.revoke(authorizationHeader.substring(7));
+        return ResponseEntity.noContent().build();
+    }
+
     @GetMapping("/me")
     Map<String, Object> profile(HttpServletRequest r) {
         return users.profile(authenticatedUserId(r));

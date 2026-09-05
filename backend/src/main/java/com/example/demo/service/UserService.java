@@ -132,10 +132,10 @@ public class UserService {
         try {
             credentials = jdbcTemplate.queryForObject("SELECT id,password_hash FROM users WHERE email=?", (resultSet, rowNumber) -> new Credentials(resultSet.getLong("id"), resultSet.getString("password_hash")), email(email));
         } catch (EmptyResultDataAccessException exception) {
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
+            throw invalidCredentials();
         }
         if (credentials == null || !passwordEncoder.matches(password, credentials.passwordHash()))
-            throw new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid email or password");
+            throw invalidCredentials();
         return credentials.userId();
     }
 
@@ -204,6 +204,10 @@ public class UserService {
 
     private ApiException emailAlreadyUsed() {
         return new ApiException(HttpStatus.CONFLICT, "email_already_used", "This email has already been used");
+    }
+
+    private ApiException invalidCredentials() {
+        return new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid username or password");
     }
 
     private void replaceProfileArrays(long userId, Map<String, Object> profileData) {

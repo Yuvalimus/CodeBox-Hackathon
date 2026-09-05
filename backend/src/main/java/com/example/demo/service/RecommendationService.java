@@ -102,6 +102,7 @@ public class RecommendationService {
 
     private List<Map<String, Object>> loadRecommendations(long userId, int limit) {
         Users currentUser = userService.find(userId);
+        Set<Long> usersWhoAcceptedMe = usersWhoAccepted(userId);
         List<Map<String, Object>> recommendations = new ArrayList<>();
         for (Long candidateId : eligibleCandidateIds(userId)) {
             Users candidate = userService.find(candidateId);
@@ -112,9 +113,16 @@ public class RecommendationService {
             recommendations.add(serializedCandidate);
         }
         recommendations.sort(Comparator
-            .<Map<String, Object>, Double>comparing(recommendation -> -(Double) recommendation.get("compatibility"))
+            .<Map<String, Object>, Boolean>comparing(recommendation -> !usersWhoAcceptedMe.contains((Long) recommendation.get("id")))
+            .thenComparing(Comparator.comparing((Map<String, Object> recommendation) -> -(Double) recommendation.get("compatibility")))
             .thenComparing(recommendation -> (Long) recommendation.get("id")));
         return List.copyOf(recommendations.subList(0, Math.min(limit, recommendations.size())));
+    }
+
+    private Set<Long> usersWhoAccepted(long userId) {
+        return new HashSet<>(jdbcTemplate.queryForList(
+            "SELECT actor_user_id FROM match_decisions WHERE target_user_id=? AND decision='accepted'",
+            Long.class, userId));
     }
 
     private List<Long> eligibleCandidateIds(long userId) {
