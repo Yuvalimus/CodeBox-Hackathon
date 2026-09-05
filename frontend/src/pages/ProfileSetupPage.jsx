@@ -1,11 +1,13 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { AVATARS } from '../config/avatars.js';
+import AvatarArt from '../components/AvatarArt.jsx';
 import BookIcon from '../components/BookIcon.jsx';
 import { PRODUCT_NAME } from '../config/brand.js';
 import './ProfileSetupPage.css';
+import './SetupFlow.css';
 
-export default function ProfileSetupPage({ profile: savedProfile, onProfileChange: saveProfile, navigate, goTo, editing = false }) {
-  const [profile, onProfileChange] = useState(savedProfile);
+export default function ProfileSetupPage({ profile: savedProfile, onProfileChange: saveProfile, navigate, goTo, editing = false, step = 1, setupDraft, onSetupDraft }) {
+  const [profile, onProfileChange] = useState(editing ? savedProfile : setupDraft || savedProfile);
   const [nameError, setNameError] = useState('');
   const [saving, setSaving] = useState(false);
   const [saveError, setSaveError] = useState('');
@@ -23,6 +25,12 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
     return () => URL.revokeObjectURL(url);
   }, [profile?.photo, profile?.pictureUrl]);
 
+  useEffect(() => {
+    if (!editing && profile) onSetupDraft(profile);
+  }, [profile, editing, onSetupDraft]);
+  useEffect(() => {
+    if (!editing && step > 1 && profile && !profile.classes.length) goTo('/profile-setup');
+  }, [step, editing, profile?.classes.length]);
   if (!profile) return <main className="profile-setup profile-missing">
     <BookIcon /><h1>Let’s start with your name.</h1>
     <p>Log in or sign up to set up your profile.</p>
@@ -38,6 +46,7 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
     if (!match) { setError('Use a subject and four-digit course number, like CSC 2001.'); courseInput.current?.focus(); return false; }
     const normalized = `${match[1]} ${match[2]}`;
     if (profile.classes.includes(normalized)) { setError('You’ve already added that class.'); courseInput.current?.focus(); return false; }
+    if (profile.classes.length >= 30) { setError('You can add up to 30 classes.'); return false; }
     update('classes', [...profile.classes, normalized]);
     setCourse('');
     setError('');
@@ -48,16 +57,22 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   async function finish(event) {
     event.preventDefault();
     if (saving) return;
-    if (!profile.name.trim()) { setNameError('Enter your name.'); document.getElementById('profile-name')?.focus(); return; }
+    if (editing && !profile.name.trim()) { setNameError('Enter your name.'); document.getElementById('profile-name')?.focus(); return; }
     let classes = profile.classes;
+    if (editing || step === 1) {
     if (course.trim()) {
       const match = course.trim().toUpperCase().match(/^([A-Z]{2,4})\s*(\d{4})$/);
       if (!match || classes.includes(`${match[1]} ${match[2]}`)) { addCourse(); return; }
       classes = [...classes, `${match[1]} ${match[2]}`];
     }
     else if (!profile.classes.length) { setError('Add at least one current class to continue.'); courseInput.current?.focus(); return; }
+    }
+    if (classes.length > 30) { setSaveError('You can add up to 30 classes.'); return; }
+    if (!classes.length) { setSaveError('Add at least one class.'); return; }
+    const draft = { ...profile, name: profile.name.trim(), classes };
+    if (!editing && step < 3) { onSetupDraft(draft); goTo(step === 1 ? '/profile-setup/about' : '/profile-setup/avatar'); return; }
     setSaving(true); setSaveError('');
-    try { await saveProfile({ ...profile, name: profile.name.trim(), classes }); goTo('/home'); }
+    try { await saveProfile({ ...profile, name: profile.name.trim(), classes }); if (!editing) onSetupDraft(null); goTo('/home'); }
     catch (error) { setSaveError(error.message); }
     finally { setSaving(false); }
   }
@@ -73,20 +88,16 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
     update('photo', file);
   }
 
-  return <div className="profile-setup">
-    <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a><span>YOUR STUDY CIRCLE STARTS HERE</span></header>
+  return <div className="profile-setup setup-flow">
+    <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a></header>
     <main className="profile-grid">
-      <aside className="profile-intro"><div className="eyebrow">STEP 2 OF 2 · YOUR PROFILE</div><h1>Hey, {profile.name}.<br /><span>Make yourself<br />at home.</span></h1><p>Start with your classes. The rest is a little space to tell your future study buddies about you.</p><div className="profile-tip"><BookIcon /><h2>A class in common.<br />A place to start.</h2><p>Add the classes you’re taking now. Later, you’ll pick which ones you want to study in each session.</p></div><p className="hint">Supported profile fields save to your account.</p></aside>
-      <form className="profile-card" onSubmit={finish} noValidate><p className="notice">Classes, major, bio, and HTTPS picture URLs save to your account. Name, college year, color avatar, and uploaded photo previews are local only; the API does not support them yet.</p>{saveError && <p role="alert" className="error">{saveError}</p>}<div className="field"><label htmlFor="picture-url">Profile picture URL (optional, HTTPS)</label><input id="picture-url" type="url" value={profile.pictureUrl || ''} onChange={event => update('pictureUrl', event.target.value)} /></div>
-        <div className="field"><label htmlFor="profile-name">Name (required)</label><input id="profile-name" autoComplete="name" required value={profile.name} onChange={(event) => { update('name', event.target.value); setNameError(''); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'profile-name-error' : undefined} />{nameError && <p id="profile-name-error" className="error">{nameError}</p>}</div>
-        <section aria-labelledby="classes-title"><div className="profile-section-title"><h2 id="classes-title">Your current classes</h2><span>Required</span></div><p className="profile-description">Add at least one class to help you find common ground.</p><label htmlFor="course">Class code</label><div className="profile-class-entry"><input ref={courseInput} id="course" value={course} placeholder="CSC 2001" autoCapitalize="characters" spellCheck="false" aria-invalid={Boolean(error)} aria-describedby={error ? 'course-error' : 'course-hint'} onChange={(event) => { setCourse(event.target.value); setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCourse(); } }} /><button type="button" onClick={addCourse}>Add class +</button></div><p className="hint" id="course-hint">Use the format CSC 2001. Class codes aren’t checked against a course catalog yet.</p>{error && <p className="error" id="course-error" role="alert">{error}</p>}<ul className="profile-class-list" aria-label="Added classes">{profile.classes.map((item) => <li key={item}>{item}<button type="button" aria-label={`Remove ${item}`} onClick={() => { update('classes', profile.classes.filter((value) => value !== item)); setError(''); }}>×</button></li>)}</ul></section>
-        <section className="profile-optional" aria-labelledby="optional-title"><div className="profile-section-title"><h2 id="optional-title">A little about you</h2><span>All optional</span></div><p className="profile-description">Share as much or as little as you like.</p>
-          <div className="profile-photo-row"><div className="profile-avatar" style={{ background: AVATARS.find((avatar) => avatar.id === profile.avatar)?.color || AVATARS[0].color }}>{photoUrl ? <img src={photoUrl} alt="Your profile preview" onError={() => { setPhotoError('This image could not be opened. Try another image.'); update('photo', null); }} /> : <span aria-label="Color avatar" />}</div><div><label htmlFor="photo">Profile picture <span>(optional)</span></label><input ref={photoInput} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} aria-describedby={photoError ? 'photo-error' : 'photo-hint'} /><p className="hint" id="photo-hint">JPG, PNG, or WebP · Up to 5 MB · Local preview only</p>{profile.photo && <button className="profile-remove" type="button" onClick={() => { update('photo', null); setPhotoError(''); }}>Remove photo</button>}</div></div>{photoError && <p id="photo-error" className="error" role="alert">{photoError}</p>}
-          <fieldset className="avatar-picker"><legend>Or choose a color avatar</legend><div>{AVATARS.map((avatar) => <label key={avatar.id}><input type="radio" name="avatar" checked={!profile.photo && (profile.avatar || 'sage') === avatar.id} onChange={() => { onProfileChange((previous) => ({ ...previous, photo: null, avatar: avatar.id })); setPhotoError(''); }} /><span className="avatar-swatch" style={{ background: avatar.color }} /><span>{avatar.label}</span></label>)}</div></fieldset>
-          <div className="profile-details"><div className="field"><label htmlFor="major">Major <span>(optional)</span></label><input id="major" value={profile.major} placeholder="e.g. Computer Science" onChange={(event) => update('major', event.target.value)} /></div><div className="field"><label htmlFor="year">Year <span>(optional)</span></label><select id="year" value={profile.year} onChange={(event) => update('year', event.target.value)}><option value="">Select your year</option>{['First', 'Second', 'Third', 'Fourth', 'Fifth+'].map((year) => <option key={year} value={year}>{year}</option>)}</select></div></div>
-          <div className="field"><label htmlFor="bio">Bio <span>(optional)</span></label><textarea id="bio" rows="4" maxLength={500} value={profile.bio} placeholder="A bit about you, how you study, or what you’re excited to learn…" onChange={(event) => update('bio', event.target.value)} aria-describedby="bio-hint" /><p className="hint" id="bio-hint">{profile.bio.length}/500 characters</p></div>
-        </section>
-        <button className="submit" type="submit" disabled={saving}>{editing ? 'Save changes' : 'Finish profile'} <span aria-hidden="true">↗</span></button>
+      <form className="profile-card" onSubmit={finish} noValidate><p className="setup-progress">{editing ? 'Your profile' : `Step ${step} of 3`}</p><h1>{editing ? 'Edit profile.' : step === 1 ? 'Your classes.' : step === 2 ? 'A little about you.' : 'Pick an avatar.'}</h1>{saveError && <p role="alert" className="error">{saveError}</p>}
+        {editing && <div className="field"><label htmlFor="profile-name">Name (required)</label><input id="profile-name" autoComplete="name" required value={profile.name} onChange={(event) => { update('name', event.target.value); setNameError(''); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'profile-name-error' : undefined} />{nameError && <p id="profile-name-error" className="error">{nameError}</p>}</div>}
+        {(editing || step === 1) && <section aria-labelledby="classes-title"><div className="field"><label htmlFor="major">Major (optional)</label><input id="major" maxLength={100} value={profile.major} onChange={event => update('major', event.target.value)} /></div><div className="profile-section-title"><h2 id="classes-title">Your current classes</h2><span>Required</span></div><label htmlFor="course">Class code</label><div className="profile-class-entry"><input ref={courseInput} id="course" value={course} placeholder="CSC 2001" autoCapitalize="characters" spellCheck="false" aria-invalid={Boolean(error)} aria-describedby={error ? 'course-error' : 'course-hint'} onChange={(event) => { setCourse(event.target.value); setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCourse(); } }} /><button type="button" onClick={addCourse}>Add class +</button></div><p className="hint" id="course-hint">e.g. CSC 2001</p>{error && <p className="error" id="course-error" role="alert">{error}</p>}<ul className="profile-class-list" aria-label="Added classes">{profile.classes.map((item) => <li key={item}>{item}<button type="button" aria-label={`Remove ${item}`} onClick={() => { update('classes', profile.classes.filter((value) => value !== item)); setError(''); }}>×</button></li>)}</ul></section>}
+        {(editing || step === 2) && <section><div className="field"><label htmlFor="year">Year (optional)</label><select id="year" value={profile.year} onChange={event => update('year', event.target.value)}><option value="">Select year</option>{['First', 'Second', 'Third', 'Fourth', 'Fifth+'].map(year => <option key={year}>{year}</option>)}</select></div><div className="field"><label htmlFor="bio">Bio (optional)</label><textarea id="bio" rows={4} maxLength={500} value={profile.bio} onChange={event => update('bio', event.target.value)} /></div></section>}
+        {(editing || step === 3) && <section><fieldset className="setup-avatars"><legend className="sr-only">Choose your avatar</legend>{AVATARS.map((avatar, index) => <label key={avatar.id} className={!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id ? 'selected' : ''}><input type="radio" name="avatar" checked={!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id} onChange={() => { onProfileChange(previous => ({ ...previous, photo: null, pictureUrl: null, avatar: avatar.id })); setPhotoError(''); }} /><AvatarArt avatar={avatar.id} label={avatar.label} />{!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id && <span className="avatar-selected" aria-hidden="true">&#10003;</span>}</label>)}</fieldset><label htmlFor="photo" className="setup-upload">Or upload a photo</label><input ref={photoInput} id="photo" type="file" accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} /><p className="hint">JPG, PNG or WebP. Up to 5 MB.</p>{photoUrl && <div className="setup-photo"><img src={photoUrl} alt="Selected profile photo" onError={() => { setPhotoError('Choose a valid image.'); onProfileChange(previous => ({ ...previous, photo: null, pictureUrl: null })); }} /><button type="button" onClick={() => onProfileChange(previous => ({ ...previous, photo: null, pictureUrl: null }))}>Remove photo</button></div>}{photoError && <p className="error" role="alert">{photoError}</p>}<p className="hint">Avatar and uploads are saved for this session only.</p></section>}
+        <button className="submit" type="submit" disabled={saving}>{saving ? 'Saving...' : editing ? 'Save changes' : step === 3 ? 'Finish' : 'Next'} <span aria-hidden="true">↗</span></button>
+        {!editing && step > 1 && <button className="setup-back" type="button" disabled={saving} onClick={() => { onSetupDraft(profile); goTo(step === 3 ? '/profile-setup/about' : '/profile-setup'); }}>Back</button>}
         {editing && <a className="profile-cancel" href="/home" onClick={navigate}>Cancel changes</a>}
       </form>
     </main>

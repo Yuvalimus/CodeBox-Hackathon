@@ -1,0 +1,17 @@
+.setup-flow .profile-header { justify-content: center; border: 0; padding: 28px 20px 0; }
+.setup-flow .profile-grid { display: block; max-width: 490px; padding: 24px 24px 45px; }
+.setup-flow .profile-card { padding: 0; border: 0; background: transparent; }
+.setup-flow h1 { text-align: center; font-size: 32px; letter-spacing: -1px; margin: 8px 0 28px; }
+.setup-progress { text-align: center; font-size: 11px; color: var(--muted); margin: 0; }
+.setup-avatars { border: 0; padding: 0; margin: 0 0 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.setup-avatars label { position: relative; cursor: pointer; border: 2px solid transparent; border-radius: 17px; margin: 0; overflow: visible; }
+.setup-avatars svg { border-radius: 14px; overflow: hidden; }
+.setup-avatars label.selected { border-color: var(--ink); }
+.setup-avatars input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.setup-avatars label:focus-within { outline: 3px solid var(--ink); outline-offset: 4px; }
+.avatar-selected { position: absolute; right: -8px; top: -8px; background: var(--ink); color: white; border-radius: 50%; width: 29px; height: 29px; display: grid; place-items: center; font-size: 18px; }
+.setup-upload { margin-top: 20px; }
+.setup-photo { display: flex; align-items: center; gap: 16px; margin-top: 16px; }
+.setup-photo img { width: 80px; height: 80px; object-fit: cover; border-radius: 12px; }
+.setup-back { display: block; margin: 12px auto 0; background: transparent; border: 0; padding: 12px 25px; color: var(--ink); }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip-path: inset(50%); white-space: nowrap; }

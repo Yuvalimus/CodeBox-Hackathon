@@ -7,6 +7,7 @@ export function setToken(value) {
 }
 export const hasToken = () => Boolean(token);
 export async function request(path, method = 'GET', body) {
+  const requestToken = token;
   let response;
   try {
     response = await fetch(`${base}${path}`, { method, headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), ...(body === undefined ? {} : { 'Content-Type': 'application/json' }) }, body: body === undefined ? undefined : JSON.stringify(body), signal: AbortSignal.timeout(15000) });
@@ -15,7 +16,7 @@ export async function request(path, method = 'GET', body) {
   let data;
   try { data = text ? JSON.parse(text) : null; } catch { throw new Error('The API returned an unexpected response. Check your API URL.'); }
   if (!response.ok) {
-    if (response.status === 401 && path !== '/login') { setToken(null); window.dispatchEvent(new Event('auth-expired')); }
+    if (response.status === 401 && path !== '/login' && path !== '/register' && requestToken === token) { setToken(null); window.dispatchEvent(new Event('auth-expired')); }
     throw new Error(data?.error?.message || `Request failed (${response.status}). Please try again.`);
   }
   return data;
@@ -25,6 +26,20 @@ export async function request(path, method = 'GET', body) {
 export async function usernameForEmail(email) {
   const hash = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(email.trim().toLowerCase()));
   return `cp_${Array.from(new Uint8Array(hash)).map((byte) => byte.toString(16).padStart(2, '0')).join('').slice(0, 29)}`;
+}
+export async function authenticationBody({ email, password, name }, signup) {
+  if (signup) {
+    return {
+      username: name,
+      password: password.trim(),
+      email: email.trim().toLowerCase(),
+    };
+  }
+
+  return {
+     email: email.trim().toLowerCase(),
+     password: password.trim(),
+  };
 }
 export function fromUser(user, local = {}) {
   return { ...user, name: local.name || user.username, year: local.year || '', avatar: local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], major: user.major || '', bio: user.bio || '' };
