@@ -19,11 +19,13 @@ public class RecommendationService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
+    private final ChatService chats;
     private final ReadCache readCache;
 
-    public RecommendationService(JdbcTemplate jdbcTemplate, UserService userService, ReadCache readCache) {
+    public RecommendationService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, ReadCache readCache) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
+        this.chats = chatService;
         this.readCache = readCache;
     }
 
@@ -96,6 +98,7 @@ public class RecommendationService {
     }
 
     public List<Map<String, Object>> recommendations(long userId, int limit) {
+        chats.removeExpiredChats();
         ReadCache.Key<List<Map<String, Object>>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + userId + ":" + limit);
         return readCache.getOrLoad(cacheKey, RECOMMENDATION_CACHE_TTL, () -> loadRecommendations(userId, limit));
     }
@@ -127,10 +130,11 @@ public class RecommendationService {
 
     private List<Long> eligibleCandidateIds(long userId) {
         return jdbcTemplate.queryForList(
-            "SELECT id FROM users WHERE id<>? "
-                + "AND id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=?) "
-                + "AND id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
-                + "FROM matches WHERE user_a_id=? OR user_b_id=?) ORDER BY id",
+            "SELECT users.id FROM users WHERE users.id<>? "
+                + "AND users.id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=?) "
+                + "AND users.id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
+                + "FROM matches WHERE user_a_id=? OR user_b_id=?) "
+                + "ORDER BY users.id",
             Long.class, userId, userId, userId, userId, userId);
     }
 }

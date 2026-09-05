@@ -16,6 +16,7 @@ import java.util.Map;
 
 @Service
 public class ChatService {
+    private static final Duration CHAT_TTL = Duration.ofDays(1);
     private static final Duration CHAT_LIST_CACHE_TTL = Duration.ofMinutes(1);
     private static final Duration CHAT_DETAIL_CACHE_TTL = Duration.ofSeconds(30);
     private static final String CHAT_LIST_CACHE_PREFIX = "chats:";
@@ -30,6 +31,7 @@ public class ChatService {
     }
 
     public void member(long userId, long chatId) {
+        removeExpiredChats();
         Boolean isMember = jdbcTemplate.query(
             "SELECT EXISTS(SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?)",
             resultSet -> {
@@ -42,6 +44,7 @@ public class ChatService {
     }
 
     public List<Chats.Summary> chats(long userId) {
+        removeExpiredChats();
         ReadCache.Key<List<Chats.Summary>> cacheKey = ReadCache.Key.of(CHAT_LIST_CACHE_PREFIX + userId);
         return readCache.getOrLoad(cacheKey, CHAT_LIST_CACHE_TTL, () -> loadChatSummaries(userId));
     }
@@ -131,6 +134,36 @@ public class ChatService {
     private void invalidateChatReads() {
         readCache.invalidatePrefix(CHAT_LIST_CACHE_PREFIX);
         readCache.invalidatePrefix(CHAT_DETAIL_CACHE_PREFIX);
+    }
+
+    /** Removes expired chat sessions and releases their users back into matching. */
+    public void removeExpiredChats() {
+        String expirationThreshold = Instant.now().minus(CHAT_TTL).toString();
+        int deletedMatches = jdbcTemplate.update(
+            "DELETE FROM matches WHERE EXISTS (SELECT 1 FROM chats c "
+                + "JOIN chat_members first_member ON first_member.chat_id=c.id "
+                + "JOIN chat_members second_member ON second_member.chat_id=c.id "
+                + "WHERE c.created_at<=? AND first_member.user_id=matches.user_a_id "
+                + "AND second_member.user_id=matches.user_b_id)",
+            expirationThreshold);
+        int deletedChats = jdbcTemplate.update("DELETE FROM chats WHERE created_at<=?", expirationThreshold);
+        if (deletedMatches > 0 || deletedChats > 0) {
+            invalidateChatReads();
+            readCache.invalidatePrefix("recommendations:");
+            readCache.invalidatePrefix("matches:");
+        }
+    }
+
+    public boolean hasActiveChat(long userId) {
+        removeExpiredChats();
+        Boolean activeChat = jdbcTemplate.query(
+            "SELECT EXISTS(SELECT 1 FROM chats c JOIN chat_members cm ON cm.chat_id=c.id "
+                + "WHERE cm.user_id=? AND c.created_at>?)",
+            resultSet -> {
+                resultSet.next();
+                return resultSet.getBoolean(1);
+            }, userId, Instant.now().minus(CHAT_TTL).toString());
+        return Boolean.TRUE.equals(activeChat);
     }
 
     private record ChatPageQuery(String sql, Object[] parameters) {

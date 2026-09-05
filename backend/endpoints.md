@@ -29,7 +29,7 @@ Creates an account and returns an access token plus the authenticated user profi
 {
   "username": "Alex Rivera",
   "email": "alex@calpoly.edu",
-  "password": "a-long-password-of-at-least-12-characters",
+  "password": "at-least-8-characters",
   "bio": "Optional; up to 500 characters.",
   "pictureUrl": "https://example.com/alex.jpg",
   "major": "Computer Science",
@@ -41,7 +41,7 @@ Creates an account and returns an access token plus the authenticated user profi
 }
 ```
 
-`username`, `email`, and `password` are required. Usernames are display names: they may contain spaces and symbols and are not unique. Emails must be unique `@calpoly.edu` addresses. `studying` must be a subset of `classes`.
+`username`, `email`, and `password` are required. Passwords must be 8–200 characters. Usernames are display names: they may contain spaces and symbols and are not unique. Emails must be unique `@calpoly.edu` addresses. `studying` must be a subset of `classes`.
 
 Returns `201 Created`:
 
@@ -59,7 +59,7 @@ If the email is already registered, returns `409` with `error.code` of `email_al
 ```json
 {
   "email": "alex@calpoly.edu",
-  "password": "a-long-password-of-at-least-12-characters"
+  "password": "at-least-8-characters"
 }
 ```
 
@@ -98,6 +98,18 @@ Updates one or more profile fields and returns the complete updated profile. The
 
 When changing any profile array, send a complete valid array for that field. If `classes` or `studying` changes, the resulting `studying` list must remain a subset of `classes`. Updating `email` to one used by another user returns `409/email_already_used`.
 
+### `POST /me/picture`
+
+Uploads and saves a profile picture. Send a `multipart/form-data` request with a `file` field and the bearer token. JPEG, PNG, and WebP files are supported up to 5 MB.
+
+```http
+POST /me/picture
+Authorization: Bearer <token>
+Content-Type: multipart/form-data
+```
+
+Returns the complete updated profile. Its `pictureUrl` is a public URL such as `/uploads/profile-pictures/0f5f4da0-8d3e-4cfd-a8bf-4c1c3e2c5db4.jpg`.
+
 ## Recommendations and matches
 
 ### `GET /recommendations?limit=20`
@@ -122,6 +134,8 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
 ```
 
 Candidates who have already accepted the authenticated user are prioritized first.
+
+Mutual matches are exclusive while their direct chat is active: users with an active match are excluded from all recommendation lists. When the chat expires after 24 hours, its match is deleted and both users return to recommendation pools.
 
 ### `POST /recommendations/{userId}/accept`
 
@@ -163,6 +177,7 @@ Returns matched users. Match profile responses never include another user's emai
 ## Chats
 
 Chats are created only by mutual accepts; clients cannot create arbitrary chats.
+Chats expire 24 hours after creation. Expiration deletes the chat, its messages, and its match; both users then become eligible recommendations again.
 
 ### `GET /chats`
 
@@ -221,3 +236,19 @@ Returns other unexpired active users, each with `subjects` and `expiresAt`.
 ### `DELETE /looking-now`
 
 Stops the authenticated user's active presence and returns `204 No Content`.
+
+## Development test data
+
+### `POST /test/profiles?count=10`
+
+Creates randomized study profiles for local development and returns their sanitized profiles. It requires a bearer token and accepts a `count` from 1 through 50 (default: 10).
+
+This route is disabled by default. Set `TEST_DATA_ENABLED=true` before starting the backend to enable it. Disabled environments return `404`.
+
+```json
+{
+  "profiles": [
+    { "id": 12, "username": "Alex Rivera", "classes": ["CSC 357"], "studying": ["CSC 357"] }
+  ]
+}
+```
