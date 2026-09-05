@@ -6,20 +6,22 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 
 ## Confirmed requirements
 
-- Signup requires a nonblank name alongside Cal Poly email and password. For testing, valid signup navigates to profile setup without API calls or creating an account.
+- Signup requires a nonblank name alongside Cal Poly email and password. Signup creates a backend account and navigates to profile setup.
 - Profile setup requires at least one current class, entered as a subject and four-digit number (for example `CSC 2001`). Major is optional.
 - Students may optionally provide a profile picture, bio, and year (First, Second, Third, Fourth, or Fifth+). The profile and candidate cards must work without these optional fields. A preferred study location remains optional for future profile editing.
 - Do not include availability schedules: study sessions are initiated in the moment.
 - Completed profile setup opens `/home`. Users can edit all profile fields, including their required name, through My profile. Four named color avatars are available as photo alternatives, with artwork to be added later.
-- The homepage Find a buddy flow requires selecting one or more existing classes using checkboxes. Study location is optional and defaults to Kennedy Library when blank. Keep all API calls unimplemented for now.
+- The homepage Find a buddy flow requires selecting one or more existing classes using checkboxes. Study location is optional and defaults to Kennedy Library when blank. Connect the existing backend APIs without editing the backend.
 - Before going online, students select which of their existing classes they want to study for in the current session. Keep this session selection separate from their full class list.
 - Students can explicitly indicate that they are online and looking for a study buddy, and go offline when finished.
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.
 - Swipe left passes on a candidate; swipe right sends a match request.
-- Discovery displays one candidate at a time. Support A/Left Arrow to pass and D/Right Arrow to request, alongside pointer swipes and labeled buttons. Use fictional test profiles while APIs are unimplemented; requests remain visibly pending and are not real deliveries.
+- Requests should be silent and prioritize the requester in the recipient's deck; ranking belongs to the backend. The frontend preserves server order. Current backend priority support is missing; see BACKEND_HANDOFF.md.
+- Mutual matches show a celebration page and open the server-created chat. Both users should go offline. Until the backend handles both presences atomically, each active client deletes only its own presence after detecting a new match.
+- Discovery displays one candidate at a time. Support A/Left Arrow to pass and D/Right Arrow to request, alongside pointer swipes and labeled buttons. Use backend recommendations filtered by online presence. Requests remain pending until the backend confirms a mutual match.
 - Make the request status clear. Sending a request is not itself an accepted match.
 - After a match is accepted, show a chat between the matched students.
-- Login and signup use email and password only. Accept only `@calpoly.edu` email addresses. Leave API calls unimplemented for now; frontend validation does not verify email ownership or authenticate users. Do not choose an authentication provider or claim verification is enforced by a front-end prototype.
+- Login and signup use email and password only. Accept only `@calpoly.edu` email addresses. Use the existing backend authentication API; frontend validation does not verify email ownership or authenticate users. Do not choose an authentication provider or claim verification is enforced by a front-end prototype.
 - The primary brand color is `#CCDDB7`.
 - Additional brand colors have not been selected. Keep the palette easy to extend and treat any necessary neutral colors as provisional.
 

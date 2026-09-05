@@ -7,6 +7,8 @@ import './ProfileSetupPage.css';
 export default function ProfileSetupPage({ profile: savedProfile, onProfileChange: saveProfile, navigate, goTo, editing = false }) {
   const [profile, onProfileChange] = useState(savedProfile);
   const [nameError, setNameError] = useState('');
+  const [saving, setSaving] = useState(false);
+  const [saveError, setSaveError] = useState('');
   const [course, setCourse] = useState('');
   const [error, setError] = useState('');
   const [photoError, setPhotoError] = useState('');
@@ -15,15 +17,15 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   const photoInput = useRef(null);
 
   useEffect(() => {
-    if (!profile?.photo) { setPhotoUrl(''); return; }
+    if (!profile?.photo) { setPhotoUrl(profile?.pictureUrl || ''); return; }
     const url = URL.createObjectURL(profile.photo);
     setPhotoUrl(url);
     return () => URL.revokeObjectURL(url);
-  }, [profile?.photo]);
+  }, [profile?.photo, profile?.pictureUrl]);
 
   if (!profile) return <main className="profile-setup profile-missing">
     <BookIcon /><h1>Let’s start with your name.</h1>
-    <p>Sign up to try profile setup. This preview resets when you refresh.</p>
+    <p>Log in or sign up to set up your profile.</p>
     <a href="/signup" onClick={navigate}>Go to signup →</a>
   </main>;
 
@@ -43,8 +45,9 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
     return true;
   }
 
-  function finish(event) {
+  async function finish(event) {
     event.preventDefault();
+    if (saving) return;
     if (!profile.name.trim()) { setNameError('Enter your name.'); document.getElementById('profile-name')?.focus(); return; }
     let classes = profile.classes;
     if (course.trim()) {
@@ -53,8 +56,10 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
       classes = [...classes, `${match[1]} ${match[2]}`];
     }
     else if (!profile.classes.length) { setError('Add at least one current class to continue.'); courseInput.current?.focus(); return; }
-    saveProfile({ ...profile, name: profile.name.trim(), classes });
-    goTo('/home');
+    setSaving(true); setSaveError('');
+    try { await saveProfile({ ...profile, name: profile.name.trim(), classes }); goTo('/home'); }
+    catch (error) { setSaveError(error.message); }
+    finally { setSaving(false); }
   }
 
   function selectPhoto(event) {
@@ -71,8 +76,8 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   return <div className="profile-setup">
     <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a><span>YOUR STUDY CIRCLE STARTS HERE</span></header>
     <main className="profile-grid">
-      <aside className="profile-intro"><div className="eyebrow">STEP 2 OF 2 · YOUR PROFILE</div><h1>Hey, {profile.name}.<br /><span>Make yourself<br />at home.</span></h1><p>Start with your classes. The rest is a little space to tell your future study buddies about you.</p><div className="profile-tip"><BookIcon /><h2>A class in common.<br />A place to start.</h2><p>Add the classes you’re taking now. Later, you’ll pick which ones you want to study in each session.</p></div><p className="hint">Testing preview · No account is created. Your profile stays in memory until you refresh.</p></aside>
-      <form className="profile-card" onSubmit={finish} noValidate>
+      <aside className="profile-intro"><div className="eyebrow">STEP 2 OF 2 · YOUR PROFILE</div><h1>Hey, {profile.name}.<br /><span>Make yourself<br />at home.</span></h1><p>Start with your classes. The rest is a little space to tell your future study buddies about you.</p><div className="profile-tip"><BookIcon /><h2>A class in common.<br />A place to start.</h2><p>Add the classes you’re taking now. Later, you’ll pick which ones you want to study in each session.</p></div><p className="hint">Supported profile fields save to your account.</p></aside>
+      <form className="profile-card" onSubmit={finish} noValidate><p className="notice">Classes, major, bio, and HTTPS picture URLs save to your account. Name, college year, color avatar, and uploaded photo previews are local only; the API does not support them yet.</p>{saveError && <p role="alert" className="error">{saveError}</p>}<div className="field"><label htmlFor="picture-url">Profile picture URL (optional, HTTPS)</label><input id="picture-url" type="url" value={profile.pictureUrl || ''} onChange={event => update('pictureUrl', event.target.value)} /></div>
         <div className="field"><label htmlFor="profile-name">Name (required)</label><input id="profile-name" autoComplete="name" required value={profile.name} onChange={(event) => { update('name', event.target.value); setNameError(''); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'profile-name-error' : undefined} />{nameError && <p id="profile-name-error" className="error">{nameError}</p>}</div>
         <section aria-labelledby="classes-title"><div className="profile-section-title"><h2 id="classes-title">Your current classes</h2><span>Required</span></div><p className="profile-description">Add at least one class to help you find common ground.</p><label htmlFor="course">Class code</label><div className="profile-class-entry"><input ref={courseInput} id="course" value={course} placeholder="CSC 2001" autoCapitalize="characters" spellCheck="false" aria-invalid={Boolean(error)} aria-describedby={error ? 'course-error' : 'course-hint'} onChange={(event) => { setCourse(event.target.value); setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCourse(); } }} /><button type="button" onClick={addCourse}>Add class +</button></div><p className="hint" id="course-hint">Use the format CSC 2001. Class codes aren’t checked against a course catalog yet.</p>{error && <p className="error" id="course-error" role="alert">{error}</p>}<ul className="profile-class-list" aria-label="Added classes">{profile.classes.map((item) => <li key={item}>{item}<button type="button" aria-label={`Remove ${item}`} onClick={() => { update('classes', profile.classes.filter((value) => value !== item)); setError(''); }}>×</button></li>)}</ul></section>
         <section className="profile-optional" aria-labelledby="optional-title"><div className="profile-section-title"><h2 id="optional-title">A little about you</h2><span>All optional</span></div><p className="profile-description">Share as much or as little as you like.</p>
@@ -81,7 +86,7 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
           <div className="profile-details"><div className="field"><label htmlFor="major">Major <span>(optional)</span></label><input id="major" value={profile.major} placeholder="e.g. Computer Science" onChange={(event) => update('major', event.target.value)} /></div><div className="field"><label htmlFor="year">Year <span>(optional)</span></label><select id="year" value={profile.year} onChange={(event) => update('year', event.target.value)}><option value="">Select your year</option>{['First', 'Second', 'Third', 'Fourth', 'Fifth+'].map((year) => <option key={year} value={year}>{year}</option>)}</select></div></div>
           <div className="field"><label htmlFor="bio">Bio <span>(optional)</span></label><textarea id="bio" rows="4" maxLength={500} value={profile.bio} placeholder="A bit about you, how you study, or what you’re excited to learn…" onChange={(event) => update('bio', event.target.value)} aria-describedby="bio-hint" /><p className="hint" id="bio-hint">{profile.bio.length}/500 characters</p></div>
         </section>
-        <button className="submit" type="submit">{editing ? 'Save changes' : 'Finish profile'} <span aria-hidden="true">↗</span></button>
+        <button className="submit" type="submit" disabled={saving}>{editing ? 'Save changes' : 'Finish profile'} <span aria-hidden="true">↗</span></button>
         {editing && <a className="profile-cancel" href="/home" onClick={navigate}>Cancel changes</a>}
       </form>
     </main>
