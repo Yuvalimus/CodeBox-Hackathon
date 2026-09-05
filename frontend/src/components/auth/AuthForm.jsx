@@ -42,7 +42,6 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
   return <div className="form-content">
     <div className="eyebrow">YOUR NEXT STUDY SESSION STARTS HERE</div>
     <h2>{signup ? 'Find your study people.' : 'Welcome back.'}</h2>
-    <p className="form-intro">{signup ? 'A little company. A lot more motivation.' : 'Good company makes the hard classes easier.'}</p>
     <nav className="auth-tabs" aria-label="Account access">
       <a href="/login" aria-current={!signup ? 'page' : undefined} onClick={navigate}>Log in</a>
       <a href="/signup" aria-current={signup ? 'page' : undefined} onClick={navigate}>Sign up</a>
@@ -64,6 +63,5 @@ export default function AuthForm({ signup, navigate, onSignup, onLogin }) {
       {apiError && <p className="error" role="alert">{apiError}</p>}
     </form>
     <p className="switch-prompt">{signup ? 'Already found us?' : 'New around here?'} <a href={signup ? '/login' : '/signup'} onClick={navigate}>{signup ? 'Log in' : 'Create an account'}</a></p>
-    <p className="prototype-note">Name is local to this session until the API supports display names.</p>
   </div>;
 }

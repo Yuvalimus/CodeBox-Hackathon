@@ -4,7 +4,19 @@ import assert from 'node:assert/strict';
 const store = new Map();
 globalThis.sessionStorage = { getItem: key => store.get(key), setItem: (key, value) => store.set(key, value), removeItem: key => store.delete(key) };
 globalThis.window = new EventTarget();
-const { request, setToken, hasToken, usernameForEmail, profileBody, fromUser } = await import('./api.js');
+const { request, setToken, hasToken, usernameForEmail, authenticationBody, profileBody, fromUser } = await import('./api.js');
+
+test('signup names never become backend usernames and login uses the same identifier', async () => {
+  const input = { name: "María O'Connor", email: ' Student@CalPoly.edu ', password: ' a long test password ' };
+  const signup = await authenticationBody(input, true);
+  const login = await authenticationBody(input, false);
+  assert.match(signup.username, /^[a-z0-9_-]{3,32}$/);
+  assert.equal(signup.username, login.username);
+  assert.equal(signup.email, 'student@calpoly.edu');
+  assert.equal(login.password, 'a long test password');
+  assert.equal('email' in login, false);
+  assert.equal('name' in signup, false);
+});
 
 test('email login maps to a stable valid backend username', async () => {
   const username = await usernameForEmail(' Student@CalPoly.edu ');

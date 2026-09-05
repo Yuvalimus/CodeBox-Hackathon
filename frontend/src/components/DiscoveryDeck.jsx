@@ -34,7 +34,7 @@ export default function DiscoveryDeck({ session, onEnd }) {
   useEffect(() => { region.current?.focus(); return () => clearTimeout(timer.current); }, []);
 
   const decide = useCallback(async (direction) => {
-    if (!candidate || lock.current || loading || busy) return;
+    if (!candidate || lock.current || loading || busy || apiError) return;
     if (Date.parse(candidate.expiresAt) <= Date.now()) { setMessage('This student is no longer online.'); setIndex(previous => previous + 1); return; }
     lock.current = true; setBusy(true); setApiError('');
     try {
@@ -49,7 +49,7 @@ export default function DiscoveryDeck({ session, onEnd }) {
     setDrag(0);
     gesture.current = null;
     } catch(error) { setApiError(error.message); } finally { lock.current = false; setBusy(false); }
-  }, [candidate, loading, busy]);
+  }, [candidate, loading, busy, apiError]);
 
   useEffect(() => {
     function keydown(event) {
@@ -92,7 +92,7 @@ export default function DiscoveryDeck({ session, onEnd }) {
       {!loading && candidate ? <>
         <div className="discovery-progress">{index + 1} of {candidates.length} profiles · Recommended for you</div>
         <article className="candidate-card" style={{ transform: `translateX(${Math.max(-130, Math.min(130, drag))}px) rotate(${drag / 35}deg)` }} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { gesture.current = null; setDrag(0); }}>
-          <div className="candidate-color" style={{ background: AVATARS.find((avatar) => avatar.id === candidate.avatar).color }}><span className="candidate-online">● Online · test profile</span><span className="candidate-monogram" aria-hidden="true">{candidate.name[0]}</span><span className="candidate-decoration" aria-hidden="true">✳</span>{Math.abs(drag) > 35 && <span className="candidate-swipe-hint">{drag > 0 ? 'REQUEST ↗' : '← PASS'}</span>}</div>
+          <div className="candidate-color" style={{ background: (AVATARS.find((avatar) => avatar.id === candidate.avatar) || AVATARS[0]).color }}><span className="candidate-online">● Online · test profile</span><span className="candidate-monogram" aria-hidden="true">{candidate.name[0]}</span><span className="candidate-decoration" aria-hidden="true">✳</span>{Math.abs(drag) > 35 && <span className="candidate-swipe-hint">{drag > 0 ? 'REQUEST ↗' : '← PASS'}</span>}</div>
           <div className="candidate-content"><h3>{candidate.name}</h3>{(candidate.major || candidate.year) && <p className="candidate-detail">{[candidate.major, candidate.year && `${candidate.year} year`].filter(Boolean).join(' · ')}</p>}<div className="candidate-common"><span>Classes in common for this session</span><ul>{candidate.classes.map((course) => <li key={course}>{course}</li>)}</ul></div>{candidate.bio && <p className="candidate-bio">{candidate.bio}</p>}{candidate.location && <p className="candidate-location">Study spot · {candidate.location}</p>}</div>
         </article>
         <div className="discovery-actions"><button className="discovery-pass" disabled={busy} onClick={() => decide('left')}>← Pass <kbd>A / ←</kbd></button><button className="discovery-request" disabled={busy} onClick={() => decide('right')}>Request to match ↗ <kbd>D / →</kbd></button></div>
