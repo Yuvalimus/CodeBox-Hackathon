@@ -62,7 +62,15 @@ export default function App() {
   }
 
   async function authenticate({ email, password, name }, signup) {
-    const result = await request(signup ? '/register' : '/login', 'POST', { username: name, password: password.trim(), ...(signup ? { email: email.trim().toLowerCase() } : {}) });
+    let body;
+
+    if (signup) {
+      body = { username: name, password: password.trim(), ...(signup ? { email: email.trim().toLowerCase() } : {}) };
+    } else {
+      body = { email: email, password: password.trim() };
+    }
+    
+    const result = await request(signup ? '/register' : '/login', 'POST', body);
     setToken(result.token);
     setProfile(fromUser(result.user, { name }));
     goTo(result.user.classes?.length ? '/home' : '/profile-setup');
