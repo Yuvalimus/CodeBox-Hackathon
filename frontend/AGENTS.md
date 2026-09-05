@@ -13,6 +13,7 @@ Build the React front end for an in-the-moment study-buddy matching website for 
 - Do not include availability schedules: study sessions are initiated in the moment.
 - Completed profile setup opens `/home`. Users can edit all profile fields, including their required name, through My profile. Four illustrated avatars from the supplied reference are available as photo alternatives.
 - The homepage Find a buddy flow requires selecting one or more existing classes using checkboxes. Study location is optional and defaults to Kennedy Library when blank. Connect the existing backend APIs without editing the backend.
+- Below the homepage top bar, show only a large Find a study buddy button. Clicking replaces it with an animated class/location form and Start looking button. Do not show introductory copy, class summaries, or chats below the homepage form.
 - Before going online, students select which of their existing classes they want to study for in the current session. Keep this session selection separate from their full class list.
 - Students can explicitly indicate that they are online and looking for a study buddy, and go offline when finished.
 - Discovery shows only students who are currently online, ordered by likely compatibility. Classes in common are the most important matching signal; exact ranking rules remain to be coordinated with the backend teammate.
