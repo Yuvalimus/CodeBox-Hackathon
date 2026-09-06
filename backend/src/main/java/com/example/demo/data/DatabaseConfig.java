@@ -34,6 +34,13 @@ public class DatabaseConfig {
             if (!usersHasColumn(connection, "comments")) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V5__user_comments.sql"));
             }
+            if (!usersHasColumn(connection, "avatar")) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V6__user_avatar.sql"));
+            }
+            if (!chatIdsAreUuid(connection)) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V7__chat_uuid_ids.sql"));
+            }
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V8__site_presence.sql"));
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -55,6 +62,14 @@ public class DatabaseConfig {
                     if (columnName.equalsIgnoreCase(result.getString("name"))) return true;
                 }
                 return false;
+            }
+        }
+    }
+
+    private boolean chatIdsAreUuid(java.sql.Connection connection) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("PRAGMA table_info(chats)")) {
+            try (var result = statement.executeQuery()) {
+                return result.next() && "TEXT".equalsIgnoreCase(result.getString("type"));
             }
         }
     }

@@ -23,10 +23,9 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
       if (!lock.current && !gesture.current && !loadingRef.current) {
         loadingRef.current = true;
         try {
-          const [recs, presence] = await Promise.all([request('/recommendations?limit=50'), request('/looking-now')]);
+          const recs = await request('/recommendations?limit=50');
           if (active && !lock.current && !gesture.current && version === decisionVersion.current) {
-            const online = new Map(presence.users.filter(user => Date.parse(user.expiresAt) > Date.now()).map(user => [user.id, user]));
-            setCandidates(recs.recommendations.filter(user => online.has(user.id)).map(user => ({ ...fromUser(user), classes: user.classes.filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '', expiresAt: online.get(user.id).expiresAt })));
+            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: user.classes.filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
         } catch(error) { if (active) setApiError(error.message); }

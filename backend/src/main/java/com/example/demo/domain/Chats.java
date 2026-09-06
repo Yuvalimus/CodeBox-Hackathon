@@ -11,11 +11,11 @@ public final class Chats {
     private Chats() {
     }
 
-    public static Map<String, Object> serializeDetail(long id, List<Message> messages, String nextCursor) {
+    public static Map<String, Object> serializeDetail(String id, List<Message> messages, String nextCursor) {
         return new Detail(id, messages, nextCursor).toMap();
     }
 
-    public record Detail(long id, List<Message> messages, String nextCursor) {
+    public record Detail(String id, List<Message> messages, String nextCursor) {
         public Detail {
             messages = List.copyOf(messages);
         }
@@ -29,9 +29,9 @@ public final class Chats {
         }
     }
 
-    public record Summary(long id, String createdAt, String latestMessage) {
+    public record Summary(String id, String username, String createdAt, String latestMessage) {
         public Map<String, Object> serialize() {
-            return Map.of("id", id, "createdAt", createdAt, "latestMessage", latestMessage == null ? "" : latestMessage);
+            return Map.of("id", id, "username", username, "createdAt", createdAt, "latestMessage", latestMessage == null ? "" : latestMessage);
         }
     }
 

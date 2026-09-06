@@ -29,6 +29,7 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 @RestController
 public class StudyController {
@@ -71,6 +72,11 @@ public class StudyController {
         } catch (NumberFormatException exception) {
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_id", "ID must be a positive integer");
         }
+    }
+
+    private String chatId(String rawId) {
+        try { return UUID.fromString(rawId).toString(); }
+        catch (IllegalArgumentException exception) { throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_chat_id", "chatId must be a UUID"); }
     }
 
     @GetMapping("/health")
@@ -184,12 +190,18 @@ public class StudyController {
 
     @GetMapping("/chats/{chatId}")
     Map<String, Object> chat(HttpServletRequest r, @PathVariable String chatId, @RequestParam(required = false) String cursor) {
-        return chats.chat(authenticatedUserId(r), positiveId(chatId), cursor);
+        return chats.chat(authenticatedUserId(r), chatId(chatId), cursor);
     }
 
     @PostMapping("/chats/{chatId}/messages")
     public ResponseEntity<?> message(HttpServletRequest r, @PathVariable String chatId, @RequestBody MessageRequest request) {
-        return ResponseEntity.status(201).body(chats.message(authenticatedUserId(r), positiveId(chatId), request.message()));
+        return ResponseEntity.status(201).body(chats.message(authenticatedUserId(r), chatId(chatId), request.message()));
+    }
+
+    @DeleteMapping("/chats/{chatId}")
+    ResponseEntity<Void> unmatch(HttpServletRequest r, @PathVariable String chatId) {
+        chats.unmatch(authenticatedUserId(r), chatId(chatId));
+        return ResponseEntity.noContent().build();
     }
 
     @PutMapping("/looking-now")
@@ -209,7 +221,7 @@ public class StudyController {
         return ResponseEntity.noContent().build();
     }
 
-    public record RegistrationRequest(String username, String password, String email, String bio, String comments, String pictureUrl,
+    public record RegistrationRequest(String username, String password, String email, String bio, String comments, String pictureUrl, String avatar,
                                       String major, Integer gradYear, List<String> classes, List<String> studying,
                                       List<Integer> studyTimes, List<String> preferredStudyLocations) {
         public Map<String, Object> toServiceRequest() {
@@ -220,6 +232,7 @@ public class StudyController {
             values.put("bio", bio);
             values.put("comments", comments);
             values.put("pictureUrl", pictureUrl);
+            values.put("avatar", avatar);
             values.put("major", major);
             values.put("gradYear", gradYear);
             values.put("classes", classes);

@@ -18,8 +18,8 @@ test('documented registration uses a display name and login uses email', async (
   assert.equal('name' in signup, false);
 });
 
-test('profile writes exclude unsupported fields and keep studying within classes', () => {
-  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], major: '', bio: '', pictureUrl: null });
+test('profile writes include the selected avatar and keep studying within classes', () => {
+  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], major: '', bio: '', avatar: 'blue', pictureUrl: null });
   assert.equal(fromUser({ username: 'student', classes: [] }).name, 'student');
   assert.equal(fromUser({ username: 'Saved name' }, { name: 'Old local name' }).name, 'Saved name');
 });
@@ -44,12 +44,13 @@ test('API sends bearer JSON requests, handles 204 and server errors', async () =
 
 test('matching lifecycle uses documented responses without inventing acceptance', async () => {
   setToken('matching-test-token');
+  const chatId = '1768e38f-08e3-460d-b8d2-10f08f0a7d21';
   const calls = [
     ['/recommendations/12/accept', 'POST', 200, { decision: 'accepted', matched: false }],
-    ['/recommendations/13/accept', 'POST', 200, { decision: 'accepted', matched: true, match: { id: 4 }, chat: { id: 9 } }],
+    ['/recommendations/13/accept', 'POST', 200, { decision: 'accepted', matched: true, match: { id: 4 }, chat: { id: chatId } }],
     ['/looking-now', 'DELETE', 204, null],
-    ['/chats/9', 'GET', 200, { id: 9, messages: [], nextCursor: null }],
-    ['/chats/9/messages', 'POST', 201, { id: 31, chatId: 9, senderUserId: 1, body: 'Hello' }],
+    [`/chats/${chatId}`, 'GET', 200, { id: chatId, messages: [], nextCursor: null }],
+    [`/chats/${chatId}/messages`, 'POST', 201, { id: 31, chatId, senderUserId: 1, body: 'Hello' }],
     ['/logout', 'POST', 204, null],
   ];
   globalThis.fetch = async (url, options) => {
@@ -63,10 +64,10 @@ test('matching lifecycle uses documented responses without inventing acceptance'
   assert.equal((await request('/recommendations/12/accept', 'POST', {})).matched, false);
   const match = await request('/recommendations/13/accept', 'POST', {});
   assert.equal(match.matched, true);
-  assert.equal(match.chat.id, 9);
+  assert.equal(match.chat.id, chatId);
   await request('/looking-now', 'DELETE');
-  assert.equal((await request('/chats/9')).id, 9);
-  assert.equal((await request('/chats/9/messages', 'POST', { message: 'Hello' })).body, 'Hello');
+  assert.equal((await request(`/chats/${chatId}`)).id, chatId);
+  assert.equal((await request(`/chats/${chatId}/messages`, 'POST', { message: 'Hello' })).body, 'Hello');
   await request('/logout', 'POST');
   setToken(null);
   assert.equal(calls.length, 0);
@@ -89,22 +90,28 @@ test('picture uploads use multipart and server-relative images resolve against t
   assert.equal(fromUser(user).pictureUrl, 'https://study.happyxd.dev/uploads/profile-pictures/test.png');
   assert.equal(mediaUrl('https://example.com/photo.png'), 'https://example.com/photo.png');
   assert.equal('pictureUrl' in profileBody({ name: 'Alex', classes: [], pictureUrl: fromUser(user).pictureUrl }), false);
+  assert.equal(profileBody({ name: 'Alex', classes: [], pictureUrl: fromUser(user).pictureUrl }).avatar, 'sage');
   assert.equal(profileBody({ name: 'Alex', classes: [], pictureUrl: null }).pictureUrl, null);
   assert.equal(await saveProfileMedia({}), null);
 });
 
-test('presence skeleton leaves heartbeat blank and uses the existing offline API', async () => {
+test('presence heartbeat refreshes the queue and stopping leaves the queue', async () => {
   const { heartbeat, goOffline } = await import('./presence.js');
   let calls = 0;
   globalThis.fetch = async (url, options) => {
     calls++;
-    assert.equal(url, 'https://study.happyxd.dev/api/looking-now');
+    if (calls === 1) {
+      assert.equal(url, 'https://study.happyxd.dev/api/queue/heartbeat');
+      assert.equal(options.method, 'POST');
+      return new Response(JSON.stringify({ online: true }));
+    }
+    assert.equal(url, 'https://study.happyxd.dev/api/queue');
     assert.equal(options.method, 'DELETE');
     return new Response(null, { status: 204 });
   };
-  await heartbeat({ classes: ['CSC 2001'] }, new AbortController().signal);
-  assert.equal(calls, 0);
-  await goOffline();
+  await heartbeat(new AbortController().signal);
   assert.equal(calls, 1);
+  await goOffline();
+  assert.equal(calls, 2);
 });
 

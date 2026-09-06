@@ -33,6 +33,7 @@ Creates an account and returns an access token plus the authenticated user profi
   "bio": "Optional; up to 500 characters.",
   "comments": "Studying for one hour before the midterm.",
   "pictureUrl": "https://example.com/alex.jpg",
+  "avatar": "sage",
   "major": "Computer Science",
   "gradYear": 2027,
   "classes": ["CSC 357"],
@@ -86,7 +87,7 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `comments` is a public, optional 500-character field for describing what the user is looking for.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
@@ -122,7 +123,7 @@ Adds the authenticated user to the recommendation queue. Returns `{ "online": tr
 
 ### `POST /queue/heartbeat`
 
-Refreshes the authenticated user's 90-second queue presence. Call this every 30 seconds while looking for matches. Returns `{ "online": true, "expiresAt": "..." }`.
+Records the authenticated visitor as online for 90 seconds. If they are also in the queue, it refreshes queue presence and returns `looking: true`; otherwise it returns `{ "online": true, "looking": false, "expiresAt": "..." }`. Call this every 30 seconds while the site is open.
 
 ### `GET /queue`
 
@@ -215,6 +216,8 @@ Returns the current user's chat summaries:
 
 ### `GET /chats/{chatId}?cursor={createdAt,id}`
 
+`chatId` is a UUID.
+
 Returns the newest messages first, with up to 50 messages per page. Pass `nextCursor` from a previous response to fetch older messages.
 
 ```json
@@ -229,11 +232,17 @@ Returns the newest messages first, with up to 50 messages per page. Pass `nextCu
 
 ### `POST /chats/{chatId}/messages`
 
+`chatId` is a UUID.
+
 ```json
 { "message": "Want to review after class?" }
 ```
 
 Returns `201 Created` with the saved message. Messages are trimmed and must be 1–2,000 characters. Non-members receive `403/not_chat_member`.
+
+### `DELETE /chats/{chatId}`
+
+Ends the authenticated member's direct chat, removes its match, clears the pair's previous decisions, and returns the requester to the queue. They can immediately be recommended again. Returns `204 No Content`.
 
 ## Looking now
 

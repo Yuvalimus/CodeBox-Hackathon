@@ -23,7 +23,18 @@ public class QueuePresenceService {
     }
 
     public Map<String, Object> heartbeat(long userId) {
-        return join(userId);
+        removeExpiredPresences();
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+            "INSERT INTO user_site_presence(user_id,last_heartbeat_at) VALUES(?,?) "
+                + "ON CONFLICT(user_id) DO UPDATE SET last_heartbeat_at=excluded.last_heartbeat_at",
+            userId, now.toString());
+        int refreshed = jdbcTemplate.update(
+            "UPDATE user_queue_presence SET last_heartbeat_at=? WHERE user_id=?",
+            now.toString(), userId);
+        if (refreshed == 0) return Map.of("online", true, "looking", false, "expiresAt", now.plus(OFFLINE_AFTER).toString());
+        readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+        return response(true, now);
     }
 
     public Map<String, Object> join(long userId) {
@@ -49,17 +60,24 @@ public class QueuePresenceService {
 
     public Map<String, Object> status(long userId) {
         removeExpiredPresences();
+        jdbcTemplate.update("DELETE FROM user_site_presence WHERE last_heartbeat_at<=?", Instant.now().minus(OFFLINE_AFTER).toString());
         Boolean permanent = jdbcTemplate.query(
             "SELECT EXISTS(SELECT 1 FROM permanent_test_queue_users WHERE user_id=?)",
             resultSet -> {
                 resultSet.next();
                 return resultSet.getBoolean(1);
             }, userId);
-        if (Boolean.TRUE.equals(permanent)) return Map.of("online", true, "permanent", true);
+        if (Boolean.TRUE.equals(permanent)) return Map.of("online", true, "looking", true, "permanent", true);
         String heartbeat = jdbcTemplate.query(
             "SELECT last_heartbeat_at FROM user_queue_presence WHERE user_id=?",
             resultSet -> resultSet.next() ? resultSet.getString(1) : null, userId);
-        return heartbeat == null ? Map.of("online", false) : response(true, Instant.parse(heartbeat));
+        if (heartbeat != null) return response(true, Instant.parse(heartbeat));
+        String siteHeartbeat = jdbcTemplate.query(
+            "SELECT last_heartbeat_at FROM user_site_presence WHERE user_id=?",
+            resultSet -> resultSet.next() ? resultSet.getString(1) : null, userId);
+        return siteHeartbeat == null
+            ? Map.of("online", false, "looking", false)
+            : Map.of("online", true, "looking", false, "expiresAt", Instant.parse(siteHeartbeat).plus(OFFLINE_AFTER).toString());
     }
 
     public void removeExpiredPresences() {
@@ -68,6 +86,6 @@ public class QueuePresenceService {
     }
 
     private Map<String, Object> response(boolean online, Instant heartbeat) {
-        return Map.of("online", online, "expiresAt", heartbeat.plus(OFFLINE_AFTER).toString());
+        return Map.of("online", online, "looking", online, "expiresAt", heartbeat.plus(OFFLINE_AFTER).toString());
     }
 }

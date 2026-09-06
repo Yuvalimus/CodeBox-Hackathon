@@ -1,4 +1,6 @@
 ﻿const base = (import.meta.env?.VITE_API_BASE_URL || 'https://study.happyxd.dev/api/').replace(/\/+$/, '');
+// Vite proxies this path during development, keeping browser API requests same-origin.
+const apiBase = (import.meta.env?.VITE_API_BASE_URL || (import.meta.env?.DEV ? '/api' : 'https://study.happyxd.dev/api/')).replace(/\/+$/, '');
 let token = sessionStorage.getItem('study-token');
 export function setToken(value) {
   token = value;
@@ -7,6 +9,7 @@ export function setToken(value) {
 }
 export const hasToken = () => Boolean(token);
 export async function request(path, method = 'GET', body) {
+  const base = apiBase;
   const requestToken = token;
   const multipart = body instanceof FormData;
   let response;
@@ -38,13 +41,14 @@ export async function authenticationBody({ email, password, name }, signup) {
   };
 }
 export function fromUser(user, local = {}) {
-  return { ...user, pictureUrl: mediaUrl(user.pictureUrl), name: user.username || local.name, year: local.year || '', avatar: local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], major: user.major || '', bio: user.bio || '' };
+  return { ...user, pictureUrl: mediaUrl(user.pictureUrl), name: user.username || local.name, year: local.year || '', avatar: user.avatar || local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], major: user.major || '', bio: user.bio || '' };
 }
 export function profileBody(profile) {
-  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
+  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, avatar: profile.avatar || 'sage', ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
 }
 
 export function mediaUrl(value) {
+  const base = apiBase;
   if (!value) return null;
   if (value.startsWith('/uploads/')) {
     return /^https?:\/\//.test(base) ? new URL(value, base).href : `${base.replace(/\/$/, '')}${value}`;

@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -24,13 +25,15 @@ public class ChatService {
 
     private final JdbcTemplate jdbcTemplate;
     private final ReadCache readCache;
+    private final QueuePresenceService queuePresence;
 
-    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache) {
+    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache, QueuePresenceService queuePresence) {
         this.jdbcTemplate = jdbcTemplate;
         this.readCache = readCache;
+        this.queuePresence = queuePresence;
     }
 
-    public void member(long userId, long chatId) {
+    public void member(long userId, String chatId) {
         removeExpiredChats();
         Boolean isMember = jdbcTemplate.query(
             "SELECT EXISTS(SELECT 1 FROM chat_members WHERE chat_id=? AND user_id=?)",
@@ -49,13 +52,13 @@ public class ChatService {
         return readCache.getOrLoad(cacheKey, CHAT_LIST_CACHE_TTL, () -> loadChatSummaries(userId));
     }
 
-    public Map<String, Object> chat(long userId, long chatId, String cursor) {
+    public Map<String, Object> chat(long userId, String chatId, String cursor) {
         member(userId, chatId);
         ReadCache.Key<Map<String, Object>> cacheKey = ReadCache.Key.of(chatCacheKey(userId, chatId, cursor));
         return readCache.getOrLoad(cacheKey, CHAT_DETAIL_CACHE_TTL, () -> loadChat(chatId, cursor));
     }
 
-    public Map<String, Object> message(long userId, long chatId, String body) {
+    public Map<String, Object> message(long userId, String chatId, String body) {
         member(userId, chatId);
         String normalizedBody = validateMessageBody(body);
         String createdAt = Instant.now().toString();
@@ -64,7 +67,7 @@ public class ChatService {
             var statement = connection.prepareStatement(
                 "INSERT INTO messages(chat_id,sender_user_id,body,created_at) VALUES(?,?,?,?)",
                 new String[]{"id"});
-            statement.setLong(1, chatId);
+            statement.setString(1, chatId);
             statement.setLong(2, userId);
             statement.setString(3, normalizedBody);
             statement.setString(4, createdAt);
@@ -82,9 +85,32 @@ public class ChatService {
         return response;
     }
 
+    /** Ends a direct chat and removes its corresponding match without changing queue presence. */
+    @Transactional
+    public void unmatch(long userId, String chatId) {
+        member(userId, chatId);
+        Long otherUserId = jdbcTemplate.query(
+            "SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?",
+            resultSet -> resultSet.next() ? resultSet.getLong(1) : null, chatId, userId);
+        if (otherUserId == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "chat_not_found", "Chat not found");
+        }
+        long firstUserId = Math.min(userId, otherUserId);
+        long secondUserId = Math.max(userId, otherUserId);
+        jdbcTemplate.update("DELETE FROM matches WHERE user_a_id=? AND user_b_id=?", firstUserId, secondUserId);
+        jdbcTemplate.update("DELETE FROM match_decisions WHERE (actor_user_id=? AND target_user_id=?) OR (actor_user_id=? AND target_user_id=?)",
+            userId, otherUserId, otherUserId, userId);
+        jdbcTemplate.update("DELETE FROM chats WHERE id=?", chatId);
+        queuePresence.join(userId);
+        invalidateChatReads();
+        readCache.invalidatePrefix("recommendations:");
+        readCache.invalidatePrefix("matches:");
+    }
+
     private List<Chats.Summary> loadChatSummaries(long userId) {
         return jdbcTemplate.query(
-            "SELECT c.id,c.created_at,(SELECT body FROM messages m WHERE m.chat_id=c.id "
+            "SELECT c.id,(SELECT u.username FROM chat_members other_member JOIN users u ON u.id=other_member.user_id "
+                + "WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),c.created_at,(SELECT body FROM messages m WHERE m.chat_id=c.id "
                 + "ORDER BY created_at DESC,id DESC LIMIT 1) latest "
                 + "FROM chats c JOIN chat_members cm ON cm.chat_id=c.id "
                 + "WHERE cm.user_id=? ORDER BY c.created_at DESC",
@@ -92,13 +118,13 @@ public class ChatService {
                 List<Chats.Summary> summaries = new ArrayList<>();
                 while (resultSet.next()) {
                     summaries.add(new Chats.Summary(
-                        resultSet.getLong(1), resultSet.getString(2), resultSet.getString(3)));
+                        resultSet.getString(1), resultSet.getString(2), resultSet.getString(3), resultSet.getString(4)));
                 }
                 return List.copyOf(summaries);
-            }, userId);
+            }, userId, userId);
     }
 
-    private Map<String, Object> loadChat(long chatId, String cursor) {
+    private Map<String, Object> loadChat(String chatId, String cursor) {
         ChatPageQuery pageQuery = ChatPageQuery.from(chatId, cursor);
         List<Chats.Message> messages = jdbcTemplate.query(pageQuery.sql(), resultSet -> {
             List<Chats.Message> result = new ArrayList<>();
@@ -127,7 +153,7 @@ public class ChatService {
         return normalizedBody;
     }
 
-    private String chatCacheKey(long userId, long chatId, String cursor) {
+    private String chatCacheKey(long userId, String chatId, String cursor) {
         return CHAT_DETAIL_CACHE_PREFIX + userId + ":" + chatId + ":" + (cursor == null ? "first" : cursor);
     }
 
@@ -167,7 +193,7 @@ public class ChatService {
     }
 
     private record ChatPageQuery(String sql, Object[] parameters) {
-        private static ChatPageQuery from(long chatId, String cursor) {
+        private static ChatPageQuery from(String chatId, String cursor) {
             String sql = "SELECT id,sender_user_id,body,created_at FROM messages WHERE chat_id=? ";
             if (cursor == null) {
                 return new ChatPageQuery(sql + "ORDER BY created_at DESC,id DESC LIMIT 51", new Object[]{chatId});

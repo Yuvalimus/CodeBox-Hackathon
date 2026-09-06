@@ -37,10 +37,8 @@ export default function HomePage({ profile, navigate, onLogout, loggingOut, logo
     setBusy(true); setError('');
     try {
       if (!testDeck) {
-      const { chats } = await request('/chats');
-      if (chats.length) { setError('You already have an active match. Open Matches & chats to continue. Chats last 24 hours.'); return; }
       await request('/me', 'PATCH', { studying: selected, preferredStudyLocations: [location.trim() || 'Kennedy Library'] });
-      await request('/looking-now', 'PUT', { subjects: selected });
+      await request('/queue', 'POST');
       }
       setSession({ testDeck, classes: [...selected], location: location.trim() || 'Kennedy Library' });
     } catch (error) { setError(error.message); return; } finally { setBusy(false); }

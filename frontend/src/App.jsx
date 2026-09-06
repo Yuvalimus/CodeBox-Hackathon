@@ -3,7 +3,6 @@ import { goOffline } from './presence.js';
 import { saveProfileMedia } from './profileMedia.js';
 import { request, setToken, hasToken, authenticationBody, fromUser, profileBody } from './api.js';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
-import MatchWatcher from './components/MatchWatcher.jsx';
 import MatchPage from './pages/MatchPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
 import LoginPage from './pages/LoginPage.jsx';
@@ -104,6 +103,15 @@ export default function App() {
     user = await saveProfileMedia({ file: draft.photo }) || user;
     setProfile(fromUser(user, { ...draft, photo: null }));
   }
+  async function saveAvatar(avatar) {
+    const user = await request('/me', 'PATCH', { avatar });
+    setProfile(fromUser(user, { avatar }));
+  }
+  function resumeLookingAfterUnmatch() {
+    const classes = profile?.studying?.length ? profile.studying : profile?.classes || [];
+    setSession({ testDeck: false, classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
+    goTo('/home');
+  }
   useEffect(() => {
     if (hasToken()) request('/me').then(user => setProfile(fromUser(user))).catch(error => { if (hasToken()) setLoadError(error.message); }).finally(() => setLoading(false));
     const expired = () => { setSession(null); setMatchNotice(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear(); setLoadError(''); goTo('/login'); };
@@ -128,10 +136,9 @@ export default function App() {
   }, [pathname, session]);
   if (loading) return <main className="home-missing" role="status">Loading your profile...</main>;
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
-  const sharedProps = { onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile };
+  const sharedProps = { onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch };
   return <>
-    <MatchWatcher userId={profile?.id} onMatch={onMatch} />
-    <PresenceHeartbeat session={session} onError={setPresenceError} />
+    <PresenceHeartbeat active={Boolean(profile)} onError={setPresenceError} />
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}
     {presenceError && <p role="alert" className="error">{presenceError}</p>}
     {profile && <div hidden={pathname !== '/home'}><HomePage {...sharedProps} session={session} setSession={setSession} active={pathname === '/home'} /></div>}

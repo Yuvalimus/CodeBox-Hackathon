@@ -62,13 +62,13 @@ CREATE TABLE IF NOT EXISTS matches (
 
 
 CREATE TABLE IF NOT EXISTS chats (
-                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                     id TEXT PRIMARY KEY NOT NULL,
                                      created_at TEXT NOT NULL
 );
 
 
 CREATE TABLE IF NOT EXISTS chat_members (
-                                            chat_id INTEGER NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
+                                            chat_id TEXT NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
     user_id INTEGER NOT NULL REFERENCES users (id),
     joined_at TEXT NOT NULL,
     PRIMARY KEY (chat_id, user_id)
@@ -77,7 +77,7 @@ CREATE TABLE IF NOT EXISTS chat_members (
 
 CREATE TABLE IF NOT EXISTS messages (
                                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                        chat_id INTEGER NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
+                                        chat_id TEXT NOT NULL REFERENCES chats (id) ON DELETE CASCADE,
     sender_user_id INTEGER NOT NULL REFERENCES users (id),
     body TEXT NOT NULL,
     created_at TEXT NOT NULL

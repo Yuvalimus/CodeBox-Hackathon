@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { request } from '../api.js';
 
-export default function ChatPanel({ profile, initialChatId }) {
+export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const [chats, setChats] = useState([]);
   const [matches, setMatches] = useState([]);
   const [chat, setChat] = useState(null);
@@ -71,5 +71,21 @@ export default function ChatPanel({ profile, initialChatId }) {
       setBody('');
     } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
   }
-  return <section className="home-session"><h2>Matches & chats</h2><p className="hint">Chats and matches expire 24 hours after creation.</p><button className="home-secondary" disabled={loading || busy} onClick={refresh}>Refresh matches</button>{loading && <p role="status">Loading…</p>}{error && <p className="error" role="alert">{error}</p>}<p>{matches.length ? `Matched with ${matches.map(match => match.user.username).join(', ')}` : 'No accepted matches yet. A mutual request opens a chat.'}</p><div className="home-form-actions">{chats.map(item => <button className="home-secondary" key={item.id} disabled={busy || loading} onClick={() => open(item.id)}>Chat #{item.id}{item.latestMessage ? ` · ${item.latestMessage.slice(0, 40)}` : ''}</button>)}</div>{chat && <div><h3>Chat #{chat.id}</h3><button disabled={busy || loading} onClick={() => open(chat.id)}>Refresh messages</button>{chat.nextCursor && <button disabled={busy || loading} onClick={() => open(chat.id, true)}>Load older messages</button>}<ol aria-label="Messages">{[...chat.messages].reverse().map(message => <li key={message.id} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '16px 0' }}><strong>{message.senderUserId === profile.id ? 'You' : 'Study buddy'}: </strong>{message.body}<small style={{ display: 'block' }}>{new Date(message.createdAt).toLocaleString()}</small></li>)}</ol><form onSubmit={send}><label htmlFor="chat-message">Message</label><textarea id="chat-message" disabled={busy} value={body} onChange={event => setBody(event.target.value)} maxLength={2000} rows={3} style={{ width: '100%', font: 'inherit' }} /><button className="home-primary" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send message'}</button></form></div>}</section>;
+  async function unmatch() {
+    if (!chat || busy || !window.confirm(`Unmatch with ${chatUsername}? You can find a different study buddy afterward.`)) return;
+    const id = chat.id;
+    setBusy(true); setError('');
+    try {
+      await request(`/chats/${id}`, 'DELETE');
+      sequence.current += 1;
+      setChat(null);
+      setChats(previous => previous.filter(item => item.id !== id));
+      setMatches([]);
+      setBody('');
+      setError('You are unmatched and available to find another study buddy.');
+      await onUnmatch?.();
+    } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
+  }
+  const chatUsername = chats.find(item => item.id === chat?.id)?.username || 'your study buddy';
+  return <section className="home-session"><h2>Matches & chats</h2><p className="hint">Chats and matches expire 24 hours after creation.</p><button className="home-secondary" disabled={loading || busy} onClick={refresh}>Refresh matches</button>{loading && <p role="status">Loading…</p>}{error && <p className="error" role="alert">{error}</p>}<p>{matches.length ? `Matched with ${matches.map(match => match.user.username).join(', ')}` : 'No accepted matches yet. A mutual request opens a chat.'}</p><div className="home-form-actions">{chats.map(item => <button className="home-secondary" key={item.id} disabled={busy || loading} onClick={() => open(item.id)}>Chat with {item.username}{item.latestMessage ? ` · ${item.latestMessage.slice(0, 40)}` : ''}</button>)}</div>{chat && <div><h3>Chat with {chatUsername}</h3><button disabled={busy || loading} onClick={() => open(chat.id)}>Refresh messages</button><button className="home-secondary" disabled={busy || loading} onClick={unmatch}>Unmatch</button>{chat.nextCursor && <button disabled={busy || loading} onClick={() => open(chat.id, true)}>Load older messages</button>}<ol aria-label="Messages">{[...chat.messages].reverse().map(message => <li key={message.id} style={{ whiteSpace: 'pre-wrap', overflowWrap: 'anywhere', margin: '16px 0' }}><strong>{message.senderUserId === profile.id ? 'You' : 'Study buddy'}: </strong>{message.body}<small style={{ display: 'block' }}>{new Date(message.createdAt).toLocaleString()}</small></li>)}</ol><form onSubmit={send}><label htmlFor="chat-message">Message</label><textarea id="chat-message" disabled={busy} value={body} onChange={event => setBody(event.target.value)} maxLength={2000} rows={3} style={{ width: '100%', font: 'inherit' }} /><button className="home-primary" disabled={busy || !body.trim()}>{busy ? 'Sending…' : 'Send message'}</button></form></div>}</section>;
 }

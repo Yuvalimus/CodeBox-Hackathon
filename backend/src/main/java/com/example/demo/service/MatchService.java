@@ -3,12 +3,12 @@ package com.example.demo.service;
 import com.example.demo.api.ApiException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Map;
+import java.util.UUID;
 
 @Service
 public class MatchService {
@@ -54,7 +54,7 @@ public class MatchService {
             throw new IllegalStateException("Mutual match could not be loaded");
         }
 
-        long chatId = findOrCreateDirectChat(currentUserId, targetUserId, createdAt);
+        String chatId = findOrCreateDirectChat(currentUserId, targetUserId, createdAt);
         invalidateRelationshipReads();
         return Map.of("decision", "accepted", "matched", true, "match", Map.of("id", matchId), "chat", Map.of("id", chatId));
     }
@@ -78,28 +78,18 @@ public class MatchService {
         return Boolean.TRUE.equals(reciprocalAcceptance);
     }
 
-    private long findOrCreateDirectChat(long currentUserId, long targetUserId, String createdAt) {
-        Long existingChatId = jdbcTemplate.query(
+    private String findOrCreateDirectChat(long currentUserId, long targetUserId, String createdAt) {
+        String existingChatId = jdbcTemplate.query(
             "SELECT c.id FROM chats c JOIN chat_members first_member ON first_member.chat_id=c.id "
                 + "JOIN chat_members second_member ON second_member.chat_id=c.id "
                 + "WHERE first_member.user_id=? AND second_member.user_id=? GROUP BY c.id HAVING COUNT(*)=2",
-            resultSet -> resultSet.next() ? resultSet.getLong(1) : null, currentUserId, targetUserId);
+            resultSet -> resultSet.next() ? resultSet.getString(1) : null, currentUserId, targetUserId);
         if (existingChatId != null) {
             return existingChatId;
         }
 
-        GeneratedKeyHolder generatedKeyHolder = new GeneratedKeyHolder();
-        jdbcTemplate.update(connection -> {
-            var statement = connection.prepareStatement("INSERT INTO chats(created_at) VALUES(?)", new String[]{"id"});
-            statement.setString(1, createdAt);
-            return statement;
-        }, generatedKeyHolder);
-        Number generatedChatId = generatedKeyHolder.getKey();
-        if (generatedChatId == null) {
-            throw new IllegalStateException("Created chat did not return an ID");
-        }
-
-        long chatId = generatedChatId.longValue();
+        String chatId = UUID.randomUUID().toString();
+        jdbcTemplate.update("INSERT INTO chats(id,created_at) VALUES(?,?)", chatId, createdAt);
         jdbcTemplate.update("INSERT INTO chat_members(chat_id,user_id,joined_at) VALUES(?,?,?),(?,?,?)",
             chatId, currentUserId, createdAt, chatId, targetUserId, createdAt);
         return chatId;
