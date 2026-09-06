@@ -40,18 +40,14 @@ public class MatchService {
         validateTarget(currentUserId, targetUserId);
         String createdAt = Instant.now().toString();
         if (chats.hasActiveChat(currentUserId) || chats.hasActiveChat(targetUserId)) {
-            recordCooldown(currentUserId, targetUserId, createdAt);
+            recordDecision(currentUserId, targetUserId, "deferred", createdAt);
             invalidateRelationshipReads();
-            return Optional.empty();
+            return Optional.of(new Decision("accepted", false, null, null));
         }
         if (hasActiveCooldown(currentUserId, targetUserId)) {
             return Optional.empty();
         }
-        jdbcTemplate.update(
-            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) "
-                + "VALUES(?,?, 'accepted',?) ON CONFLICT(actor_user_id,target_user_id) "
-                + "DO UPDATE SET decision='accepted',created_at=excluded.created_at",
-            currentUserId, targetUserId, createdAt);
+        recordDecision(currentUserId, targetUserId, "accepted", createdAt);
 
         if (!hasReciprocalAcceptance(currentUserId, targetUserId)) {
             invalidateRelationshipReads();
@@ -81,19 +77,21 @@ public class MatchService {
     }
 
     private void recordCooldown(long firstUserId, long secondUserId, String createdAt) {
+        recordDecision(firstUserId, secondUserId, "rejected", createdAt);
+        recordDecision(secondUserId, firstUserId, "rejected", createdAt);
+    }
+
+    private void recordDecision(long actorUserId, long targetUserId, String decision, String createdAt) {
         jdbcTemplate.update(
-            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
-                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
-            firstUserId, secondUserId, createdAt);
-        jdbcTemplate.update(
-            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
-                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
-            secondUserId, firstUserId, createdAt);
+            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,?,?) "
+                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision=excluded.decision,created_at=excluded.created_at",
+            actorUserId, targetUserId, decision, createdAt);
     }
 
     private boolean hasReciprocalAcceptance(long currentUserId, long targetUserId) {
         return jdbcTemplate.query(
-            "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE actor_user_id=? AND target_user_id=? AND decision='accepted' AND created_at>?)",
+            "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE actor_user_id=? AND target_user_id=? "
+                + "AND (decision='deferred' OR (decision='accepted' AND created_at>?)))",
             resultSet -> {
                 resultSet.next();
                 return resultSet.getBoolean(1);

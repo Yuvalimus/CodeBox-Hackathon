@@ -57,6 +57,7 @@ public class QueuePresenceService {
 
     public void leave(long userId) {
         jdbcTemplate.update("DELETE FROM user_queue_presence WHERE user_id=?", userId);
+        jdbcTemplate.update("DELETE FROM match_decisions WHERE actor_user_id=? AND decision='deferred'", userId);
         invalidateRecommendationReads();
     }
 

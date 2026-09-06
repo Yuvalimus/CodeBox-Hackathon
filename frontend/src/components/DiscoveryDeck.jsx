@@ -14,7 +14,8 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
   const decisionVersion = useRef(0);
   const loadingRef = useRef(false);
   useEffect(() => {
-    let active = true;
+    if (!active) return;
+    let mounted = true;
     let refreshTimer;
     setLoading(true); setApiError('');
     if (session.testDeck) { setCandidates(getMockCandidates(session)); setIndex(0); setLoading(false); return; }
@@ -24,18 +25,18 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
         loadingRef.current = true;
         try {
           const recs = await request('/recommendations?limit=50');
-          if (active && !lock.current && !gesture.current && version === decisionVersion.current) {
+          if (mounted && !lock.current && !gesture.current && version === decisionVersion.current) {
             setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: (user.studying || []).filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
-        } catch(error) { if (active) setApiError(error.message); }
-        finally { loadingRef.current = false; if (active) setLoading(false); }
+        } catch(error) { if (mounted) setApiError(error.message); }
+        finally { loadingRef.current = false; if (mounted) setLoading(false); }
       }
-      if (active) refreshTimer = setTimeout(refresh, 5000);
+      if (mounted) refreshTimer = setTimeout(refresh, 5000);
     }
     refresh();
-    return () => { active = false; clearTimeout(refreshTimer); };
-  }, [session, reload]);
+    return () => { mounted = false; clearTimeout(refreshTimer); };
+  }, [session, reload, active]);
   async function end() { if (busy) return; setBusy(true); try { await onEnd(); } catch(error) { setApiError(error.message); } finally { setBusy(false); } }
   const [index, setIndex] = useState(0);
   const [requests, setRequests] = useState([]);

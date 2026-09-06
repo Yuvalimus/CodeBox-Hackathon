@@ -48,6 +48,9 @@ public class DatabaseConfig {
             if (!usersHasColumn(connection, "study_duration_minutes")) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V11__study_duration_minutes.sql"));
             }
+            if (!matchDecisionsSupportDeferred(connection)) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V12__deferred_match_decisions.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -86,6 +89,14 @@ public class DatabaseConfig {
             try (var result = statement.executeQuery()) {
                 // V11 removes the table altogether; no older time-slot migration is needed then.
                 return !result.next() || result.getString(1).matches("(?is).*hour_of_week.*BETWEEN\\s+0\\s+AND\\s+671.*");
+            }
+        }
+    }
+
+    private boolean matchDecisionsSupportDeferred(java.sql.Connection connection) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='match_decisions'")) {
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getString(1).contains("'deferred'");
             }
         }
     }
