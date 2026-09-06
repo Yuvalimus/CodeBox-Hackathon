@@ -19,8 +19,8 @@
 .candidate-card.card-exit-right { animation: card-right .28s ease-in both; pointer-events: none; }
 @keyframes discovery-arrive { from { opacity: 0; transform: translateY(24px); } to { opacity: 1; transform: translateY(0); } }
 @keyframes card-arrive { from { opacity: 0; scale: .96; } to { opacity: 1; scale: 1; } }
-@keyframes card-left { to { transform: translateX(-120%) rotate(-18deg); opacity: 0; } }
-@keyframes card-right { to { transform: translateX(120%) rotate(18deg); opacity: 0; } }
+@keyframes card-left { from { transform: var(--swipe-start); } to { transform: translateX(-120%) rotate(-18deg); opacity: 0; } }
+@keyframes card-right { from { transform: var(--swipe-start); } to { transform: translateX(120%) rotate(18deg); opacity: 0; } }
 @media (prefers-reduced-motion: reduce) { .discovery, .candidate-card.card-enter, .candidate-card.card-exit-left, .candidate-card.card-exit-right { animation: none; } }
 .discovery-heading { display: flex; justify-content: space-between; align-items: center; gap: 20px; }
 .discovery-heading h2 { font-size: 30px; letter-spacing: -1px; }
@@ -67,3 +67,9 @@
 .discovery-empty h3 { font-size: 25px; }
 .discovery-empty p { font-size: 14px; line-height: 1.8; }
 @media(max-width: 720px) { .discovery-layout { grid-template-columns: 1fr; gap: 20px; } .discovery-heading { align-items: start; } .discovery-heading h2 { font-size: 24px; } .discovery-heading button { font-size: 12px; flex-shrink: 0; } }
+
+.candidate-card { transition: transform .18s ease-out; }
+.candidate-card.card-dragging { transition: none; will-change: transform; }
+.candidate-content { overscroll-behavior-y: contain; }
+@media(pointer:coarse) { .discovery-actions kbd { display: none; } }
+@media(prefers-reduced-motion:reduce) { .candidate-card { transition: none; } }

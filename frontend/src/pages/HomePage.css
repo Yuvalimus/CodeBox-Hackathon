@@ -64,3 +64,14 @@
 .duration-options input { position: absolute; opacity: 0; width: 1px; height: 1px; }
 .duration-options label:focus-within { outline: 3px solid #638542; outline-offset: 3px; }
 @media(max-width:600px) { .duration-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+
+@media(max-width:650px) {
+  .home-header { flex-direction: column; justify-content: center; gap: 16px; padding: 18px 16px; }
+  .home-header > .brand { margin-inline: auto; font-size: 21px; }
+  .home-account-nav { display: grid; grid-template-columns: 1fr 1fr; align-items: center; justify-items: center; width: 100%; gap: 10px; }
+  .home-account-nav > a { display: flex; justify-content: center; align-items: center; min-height: 44px; text-align: center; }
+  .home-account-nav > button { grid-column: 1 / -1; justify-self: center; padding: 8px 20px; }
+  .home-profile-link { gap: 8px; }
+  .home-launch-stage { padding: 24px 16px; }
+  .home-session input:not([type=checkbox]):not([type=radio]), .home-session textarea { font-size: 16px; }
+}

@@ -24,7 +24,7 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch, onChatClo
       setChats(previous => previous.filter(item => item.id !== id));
       setMatches([]);
       setBody('');
-      setError('This chat is no longer available. Chats expire after 24 hours; you can find another study buddy from Home.');
+      setError('');
 
     } else setError(error.message);
   }
@@ -109,7 +109,7 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch, onChatClo
       setChats(previous => previous.filter(item => item.id !== id));
       setMatches([]);
       setBody('');
-      setError('You are unmatched and available to find another study buddy.');
+      setError('');
       closedCallback.current?.(id);
       await onUnmatch?.();
     } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
