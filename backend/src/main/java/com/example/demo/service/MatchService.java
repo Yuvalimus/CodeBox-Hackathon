@@ -134,6 +134,8 @@ public class MatchService {
         jdbcTemplate.update("INSERT INTO chats(id,created_at) VALUES(?,?)", chatId, createdAt);
         jdbcTemplate.update("INSERT INTO chat_members(chat_id,user_id,joined_at) VALUES(?,?,?),(?,?,?)",
             chatId, currentUserId, createdAt, chatId, targetUserId, createdAt);
+        jdbcTemplate.update("INSERT INTO chat_seen_state(chat_id,user_id,seen_at) VALUES(?,?,NULL),(?,?,NULL)",
+            chatId, currentUserId, chatId, targetUserId);
         return chatId;
     }
 

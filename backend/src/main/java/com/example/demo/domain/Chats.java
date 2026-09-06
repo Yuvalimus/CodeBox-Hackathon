@@ -16,11 +16,13 @@ public final class Chats {
     }
 
     public record Summary(String id, long userId, String username, String pictureUrl, String avatar,
-                          String createdAt, String latestMessage) {
+                          String createdAt, String latestMessage, boolean unread) {
         public Summary {
             latestMessage = latestMessage == null ? "" : latestMessage;
         }
     }
+
+    public record UnreadCount(int count) { }
 
     public record Message(long id, long senderUserId, String body, String createdAt) { }
 

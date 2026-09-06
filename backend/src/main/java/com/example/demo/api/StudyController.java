@@ -149,10 +149,14 @@ public class StudyController {
     }
 
     @GetMapping("/recommendations")
-    public RecommendationService.Response recommendations(HttpServletRequest r, @RequestParam(defaultValue = "20") int limit) {
+    public RecommendationService.Response recommendations(HttpServletRequest r, @RequestParam(defaultValue = "20") int limit,
+                                                          @RequestParam(defaultValue = "active") String queue) {
         if (limit < 1 || limit > 50)
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_limit", "limit must be 1 through 50");
-        return new RecommendationService.Response(recs.recommendations(authenticatedUserId(r), limit));
+        RecommendationService.QueueMode mode;
+        try { mode = RecommendationService.QueueMode.valueOf(queue.trim().toUpperCase()); }
+        catch (IllegalArgumentException exception) { throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_queue", "queue must be active or offline"); }
+        return new RecommendationService.Response(recs.recommendations(authenticatedUserId(r), limit, mode));
     }
 
     @PostMapping("/test/profiles")
@@ -185,6 +189,11 @@ public class StudyController {
             .map(MatchResponse::new)
             .toList();
         return new MatchesResponse(matches);
+    }
+
+    @GetMapping("/matches/unread-count")
+    public com.example.demo.domain.Chats.UnreadCount unreadMatches(HttpServletRequest r) {
+        return chats.unreadCount(authenticatedUserId(r));
     }
 
     private List<Long> matchesFor(long me) {

@@ -13,13 +13,14 @@ public final class Users {
     private final long id;
     private final String username, email, bio, comments, pictureUrl, avatar, major, createdAt, updatedAt;
     private final Integer gradYear, studyDurationMinutes;
+    private final boolean offlineDiscoverable;
     private final List<String> classes, studying, preferredStudyLocations;
 
     public Users(ResultSet resultSet, List<String> classes, List<String> studying, List<String> locations) throws SQLException {
-        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), nullableInteger(resultSet, "grad_year"), resultSet.getInt("study_duration_minutes"), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, locations);
+        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), nullableInteger(resultSet, "grad_year"), resultSet.getInt("study_duration_minutes"), resultSet.getBoolean("offline_discoverable"), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, locations);
     }
 
-    public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String avatar, String major, Integer gradYear, Integer studyDurationMinutes, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<String> locations) {
+    public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String avatar, String major, Integer gradYear, Integer studyDurationMinutes, boolean offlineDiscoverable, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<String> locations) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -30,6 +31,7 @@ public final class Users {
         this.major = major;
         this.gradYear = gradYear;
         this.studyDurationMinutes = studyDurationMinutes;
+        this.offlineDiscoverable = offlineDiscoverable;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.classes = List.copyOf(classes);
@@ -44,6 +46,10 @@ public final class Users {
 
     public long id() {
         return id;
+    }
+
+    public List<String> classes() {
+        return classes;
     }
 
     public List<String> studying() {
@@ -72,6 +78,7 @@ public final class Users {
             classes,
             studying,
             studyDurationMinutes,
+            offlineDiscoverable,
             preferredStudyLocations,
             createdAt,
             updatedAt);
@@ -79,7 +86,7 @@ public final class Users {
 
     public PublicProfile publicProfile() {
         return new PublicProfile(id, username, bio, comments, pictureUrl, avatar, major, gradYear,
-            classes, studying, studyDurationMinutes, preferredStudyLocations, createdAt, updatedAt);
+            classes, studying, studyDurationMinutes, offlineDiscoverable, preferredStudyLocations, createdAt, updatedAt);
     }
 
     /**
@@ -101,6 +108,7 @@ public final class Users {
         values.put("classes", profile.classes());
         values.put("studying", profile.studying());
         values.put("studyDurationMinutes", profile.studyDurationMinutes());
+        values.put("offlineDiscoverable", profile.offlineDiscoverable());
         values.put("preferredStudyLocations", profile.preferredStudyLocations());
         values.put("createdAt", profile.createdAt());
         values.put("updatedAt", profile.updatedAt());
@@ -120,6 +128,7 @@ public final class Users {
         List<String> classes,
         List<String> studying,
         Integer studyDurationMinutes,
+        boolean offlineDiscoverable,
         List<String> preferredStudyLocations,
         String createdAt,
         String updatedAt) { }
@@ -137,6 +146,7 @@ public final class Users {
         List<String> classes,
         List<String> studying,
         Integer studyDurationMinutes,
+        boolean offlineDiscoverable,
         List<String> preferredStudyLocations,
         String createdAt,
         String updatedAt) { }

@@ -87,7 +87,7 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `classes`, `studying`, and `preferredStudyLocations`. `studyDurationMinutes` is an integer from `15` through `480`, in 15-minute increments; it defaults to `60`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `offlineDiscoverable`, `classes`, `studying`, and `preferredStudyLocations`. `offlineDiscoverable` defaults to `false`; when enabled, the profile can appear in the offline discovery queue whether or not the user is also actively queued. `studyDurationMinutes` is an integer from `15` through `480`, in 15-minute increments; it defaults to `60`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
@@ -136,9 +136,11 @@ Immediately removes the authenticated user from recommendations. Use this for a 
 
 ## Recommendations and matches
 
-### `GET /recommendations?limit=20`
+### `GET /recommendations?limit=20&queue=active`
 
-Returns up to 20 candidates by default; `limit` must be from 1 through 50.
+Returns up to 20 candidates by default; `limit` must be from 1 through 50. `queue=active` returns people currently in the heartbeat-backed queue. `queue=offline` returns everyone who opted in to offline discovery plus everyone currently active in the heartbeat-backed queue; no heartbeat is required to browse that queue.
+
+Offline discovery is opt-in through `PATCH /me` with `offlineDiscoverable: true`. A mutual match created from either queue creates the usual direct chat; the person completing the mutual match receives the normal match notification, and the other person sees the match when they next return.
 
 ```json
 {
@@ -157,8 +159,8 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
 }
 ```
 
-Candidates must share at least one exact `studying` class with the authenticated user (for example, both selected `CSC 1000`). Candidates who have already accepted the authenticated user are prioritized first.
-Compatibility is ranked as 70% shared `studying` classes, 15% preferred study-duration similarity, and 15% graduation-year similarity. Study-duration similarity is the shorter requested duration divided by the longer requested duration, so equal durations receive full credit.
+Candidates in the active queue must share at least one exact `studying` class with the authenticated user (for example, both selected `CSC 1000`). Offline candidates must share at least one saved class. Candidates who have already accepted the authenticated user are prioritized first.
+Compatibility is ranked as 70% Jaccard overlap, 15% preferred study-duration similarity, and 15% graduation-year similarity. Active discovery calculates overlap from `studying` classes; offline discovery calculates it from saved classes. Study-duration similarity is the shorter requested duration divided by the longer requested duration, so equal durations receive full credit.
 Standard accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again. A rejection records the cooldown for both users, so either person is hidden from the other's recommendations during those five minutes.
 
 Users can hold multiple active direct-chat matches. Only an already matched pair is excluded from being recommended to one another again. When a chat expires after 24 hours, that pair's match is deleted and the two users may be recommended to one another again.
@@ -204,6 +206,14 @@ Returns matched users. Match profile responses never include another user's emai
 }
 ```
 
+### `GET /matches/unread-count`
+
+Returns the number of matched chats the authenticated user has not opened yet, or that contain a message from the other member since the user last opened that chat.
+
+```json
+{ "count": 2 }
+```
+
 ## Chats
 
 Chats are created only by mutual accepts; clients cannot create arbitrary chats.
@@ -240,10 +250,12 @@ Returns the current user's chat summaries:
 ```json
 {
   "chats": [
-    { "id": 9, "createdAt": "2026-09-05T20:00:00Z", "latestMessage": "Want to study?" }
+    { "id": "d181ab27-e42e-4dcb-a042-c377826f489d", "createdAt": "2026-09-05T20:00:00Z", "latestMessage": "Want to study?", "unread": true }
   ]
 }
 ```
+
+`unread` is `true` for a newly created match until the user opens that chat, and when the other member has sent a message since it was last opened.
 
 ### `GET /chats/{chatId}?cursor={createdAt,id}`
 

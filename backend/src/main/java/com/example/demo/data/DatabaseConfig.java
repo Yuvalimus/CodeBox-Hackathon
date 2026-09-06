@@ -56,6 +56,10 @@ public class DatabaseConfig {
             if (!queuePresenceHasSwipeTimestamp(connection)) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V13__queue_swipe_activity.sql"));
             }
+            if (!usersHasColumn(connection, "offline_discoverable")) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V14__offline_discovery.sql"));
+            }
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V15__chat_seen_state.sql"));
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }

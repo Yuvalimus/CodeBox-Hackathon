@@ -1,6 +1,8 @@
 .buddy-home { min-height: 100svh; display: flex; flex-direction: column; background: var(--paper); }
 .home-account-nav { display: flex; align-items: center; gap: 20px; font-size: 13px; }
 .home-account-nav > a { text-decoration: none; }
+.matches-link { display: inline-flex; align-items: center; gap: 7px; }
+.match-count { display: inline-grid; place-items: center; min-width: 19px; height: 19px; padding: 0 5px; border-radius: 999px; background: #d93025; color: #fff; font-size: 11px; font-weight: 800; line-height: 1; }
 @media(max-width: 650px) { .home-header, .home-account-nav { flex-wrap: wrap; } .home-account-nav { gap: 12px; } }
 .home-test-option { display: flex; align-items: center; gap: 10px; margin-top: 22px; min-height: 44px; }
 .home-test-option input { width: 18px; height: 18px; accent-color: var(--ink); }
@@ -9,6 +11,10 @@
 .home-launch-button { display: flex; align-items: center; justify-content: center; gap: 24px; width: min(100%, 620px); min-height: 170px; padding: 35px; border: 1px solid var(--border); border-radius: 25px; background: var(--brand); color: var(--ink); box-shadow: 0 12px 35px #26352a0c; font-family: Manrope, sans-serif; font-weight: 600; font-size: clamp(24px, 3vw, 34px); letter-spacing: -1px; transition: transform .2s, box-shadow .2s; }
 .home-launch-button:hover { transform: translateY(-4px); box-shadow: 0 18px 40px #26352a16; }
 .home-launch-button:active { transform: scale(.97); }
+.queue-launches { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; width: min(100%, 900px); }
+.queue-launches .home-launch-button { width: 100%; min-height: 170px; font-size: clamp(20px, 2.4vw, 30px); }
+.offline-launch { background: var(--paper); }
+@media(max-width: 650px) { .queue-launches { grid-template-columns: 1fr; } }
 .home-launch-button svg { width: 42px; height: 42px; flex-shrink: 0; }
 .home-launch-stage .home-session-reveal { width: 100%; max-width: 560px; margin: 0; animation: home-form-appear .35s ease-out both; }
 .home-session-reveal h2:focus { outline: none; }

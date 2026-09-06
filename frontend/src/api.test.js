@@ -19,7 +19,7 @@ test('documented registration uses a display name and login uses email', async (
 });
 
 test('profile writes include the selected avatar and keep studying within classes', () => {
-  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], studyTimes: [36, 37], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], major: '', bio: '', gradYear: new Date().getFullYear() + 4, avatar: 'blue', pictureUrl: null });
+  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], studyTimes: [36, 37], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], major: '', bio: '', gradYear: new Date().getFullYear() + 4, avatar: 'blue', offlineDiscoverable: false, pictureUrl: null });
   assert.equal(gradYearFor('Third'), new Date().getFullYear() + 2);
   assert.equal(yearForGradYear(gradYearFor('Fourth')), 'Fourth');
   assert.equal(fromUser({ username: 'student', classes: [] }).name, 'student');
@@ -125,7 +125,7 @@ test('study duration saves before queue entry and failed saves do not join', asy
     calls.push({ url, ...options });
     return new Response('{}');
   };
-  await startStudySession({ classes: ['CSC 2001'], location: '', comments: ' Review ', durationMinutes: 90 });
+  await startStudySession({ classes: ['CSC 2001'], location: '', comments: ' Review ', durationMinutes: 90, active: true });
   assert.ok(calls[0].url.endsWith('/me'));
   assert.equal(calls[0].method, 'PATCH');
   assert.deepEqual(JSON.parse(calls[0].body), { studying: ['CSC 2001'], preferredStudyLocations: ['Kennedy Library'], comments: 'Review', studyDurationMinutes: 90 });
@@ -133,6 +133,6 @@ test('study duration saves before queue entry and failed saves do not join', asy
   assert.equal(calls[1].method, 'POST');
   let attempted = 0;
   globalThis.fetch = async () => { attempted++; return new Response('{}', { status: 400 }); };
-  await assert.rejects(startStudySession({ classes: [], location: '', comments: '', durationMinutes: 90 }));
+  await assert.rejects(startStudySession({ classes: [], location: '', comments: '', durationMinutes: 90, active: true }));
   assert.equal(attempted, 1);
 });

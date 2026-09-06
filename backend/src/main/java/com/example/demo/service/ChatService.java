@@ -57,8 +57,18 @@ public class ChatService {
 
     public Chats.Detail chat(long userId, String chatId, String cursor) {
         member(userId, chatId);
+        jdbcTemplate.update("UPDATE chat_seen_state SET seen_at=? WHERE chat_id=? AND user_id=?", Instant.now().toString(), chatId, userId);
+        readCache.invalidate(ReadCache.Key.of(CHAT_LIST_CACHE_PREFIX + userId));
         ReadCache.Key<Chats.Detail> cacheKey = ReadCache.Key.of(chatCacheKey(userId, chatId, cursor));
         return readCache.getOrLoad(cacheKey, CHAT_DETAIL_CACHE_TTL, () -> loadChat(userId, chatId, cursor));
+    }
+
+    public Chats.UnreadCount unreadCount(long userId) {
+        Integer count = jdbcTemplate.queryForObject(
+            "SELECT COUNT(*) FROM chat_seen_state state WHERE state.user_id=? AND (state.seen_at IS NULL OR EXISTS "
+                + "(SELECT 1 FROM messages m WHERE m.chat_id=state.chat_id AND m.sender_user_id<>? AND m.created_at>state.seen_at))",
+            Integer.class, userId, userId);
+        return new Chats.UnreadCount(count == null ? 0 : count);
     }
 
     public Chats.PostedMessage message(long userId, String chatId, String body) {
@@ -124,18 +134,19 @@ public class ChatService {
                 + "(SELECT u.username FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),"
                 + "(SELECT u.picture_url FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),"
                 + "(SELECT u.avatar FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),c.created_at,(SELECT body FROM messages m WHERE m.chat_id=c.id "
-                + "ORDER BY created_at DESC,id DESC LIMIT 1) latest "
-                + "FROM chats c JOIN chat_members cm ON cm.chat_id=c.id "
+                + "ORDER BY created_at DESC,id DESC LIMIT 1) latest,"
+                + "(state.seen_at IS NULL OR EXISTS (SELECT 1 FROM messages unread_message WHERE unread_message.chat_id=c.id AND unread_message.sender_user_id<>? AND unread_message.created_at>state.seen_at)) unread "
+                + "FROM chats c JOIN chat_members cm ON cm.chat_id=c.id JOIN chat_seen_state state ON state.chat_id=c.id AND state.user_id=cm.user_id "
                 + "WHERE cm.user_id=? ORDER BY c.created_at DESC",
             resultSet -> {
                 List<Chats.Summary> summaries = new ArrayList<>();
                 while (resultSet.next()) {
                     summaries.add(new Chats.Summary(
                         resultSet.getString(1), resultSet.getLong(2), resultSet.getString(3), resultSet.getString(4),
-                        resultSet.getString(5), resultSet.getString(6), resultSet.getString(7)));
+                        resultSet.getString(5), resultSet.getString(6), resultSet.getString(7), resultSet.getBoolean(8)));
                 }
                 return List.copyOf(summaries);
-            }, userId, userId, userId, userId, userId);
+            }, userId, userId, userId, userId, userId, userId);
     }
 
     private Chats.Detail loadChat(long userId, String chatId, String cursor) {

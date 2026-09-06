@@ -45,6 +45,7 @@ export default function App() {
   const [loading, setLoading] = useState(hasToken);
   const [loadError, setLoadError] = useState('');
   const [profile, setProfile] = useState(null);
+  const [unreadMatchCount, setUnreadMatchCount] = useState(0);
   const [pathname, setPathname] = useState(() => window.location.pathname);
   const route = Object.hasOwn(routes, pathname) ? routes[pathname] : notFoundRoute;
   const Page = route.component;
@@ -81,7 +82,7 @@ export default function App() {
   async function authenticate({ email, password, name }, signup) {
     const body = await authenticationBody({ email, password, name }, signup);
     const result = await request(signup ? '/register' : '/login', 'POST', body);
-    setSession(null); setMatchNotice(null); setChatNotice(null); setPresenceError('');
+    setSession(null); setMatchNotice(null); setChatNotice(null); setUnreadMatchCount(0); setPresenceError('');
     setSetupDraft(null);
     setMatch(null);
     handledChats.current.clear();
@@ -96,7 +97,7 @@ export default function App() {
     try {
       try { await goOffline(); } catch { /* Queue presence expires shortly if cleanup is unavailable. */ }
       try { await request('/logout', 'POST'); } catch { /* Local logout must not depend on network cleanup. */ }
-      setSession(null); setMatchNotice(null); setChatNotice(null); setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
+      setSession(null); setMatchNotice(null); setChatNotice(null); setUnreadMatchCount(0); setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
       goTo('/login');
     } finally { setLoggingOut(false); }
   }
@@ -113,15 +114,37 @@ export default function App() {
   }
   function resumeLookingAfterUnmatch() {
     const classes = profile?.studying?.length ? profile.studying : profile?.classes || [];
-    setSession({ classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
+    setSession({ queueMode: 'active', classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
     setMatch(null);
   }
   useEffect(() => {
     if (hasToken()) request('/me').then(user => setProfile(fromUser(user))).catch(error => { if (hasToken()) setLoadError(error.message); }).finally(() => setLoading(false));
-    const expired = () => { setSession(null); setMatchNotice(null); setChatNotice(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear(); setLoadError(''); goTo('/login'); };
+    const expired = () => { setSession(null); setMatchNotice(null); setChatNotice(null); setUnreadMatchCount(0); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear(); setLoadError(''); goTo('/login'); };
     window.addEventListener('auth-expired', expired);
     return () => window.removeEventListener('auth-expired', expired);
   }, []);
+  const refreshUnreadMatchCount = useCallback(async () => {
+    if (!profile?.id) {
+      setUnreadMatchCount(0);
+      return;
+    }
+    try {
+      const response = await request('/matches/unread-count');
+      setUnreadMatchCount(response.count || 0);
+    } catch {
+      // The chat list still works if the optional badge refresh fails temporarily.
+    }
+  }, [profile?.id]);
+  useEffect(() => {
+    if (!profile?.id) return;
+    void refreshUnreadMatchCount();
+    const timer = window.setInterval(refreshUnreadMatchCount, 5000);
+    window.addEventListener('chat-seen', refreshUnreadMatchCount);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('chat-seen', refreshUnreadMatchCount);
+    };
+  }, [profile?.id, refreshUnreadMatchCount]);
   function onMatch(next) {
     if (!next.chatId || handledChats.current.has(next.chatId)) return;
     handledChats.current.add(next.chatId);
@@ -153,6 +176,7 @@ export default function App() {
             const update = JSON.parse(event.data);
             if (update.type !== 'chat.message' || !update.message?.id) return;
             window.dispatchEvent(new CustomEvent('chat-message', { detail: update }));
+            if (update.message.senderUserId !== profile.id) void refreshUnreadMatchCount();
             if (update.message.senderUserId !== profile.id && window.location.pathname !== '/chat') {
               setChatNotice({ chatId: update.chatId });
             }
@@ -166,7 +190,7 @@ export default function App() {
     }
     connect();
     return () => { stopped = true; clearTimeout(reconnectTimer); socket?.close(); };
-  }, [profile?.id]);
+  }, [profile?.id, refreshUnreadMatchCount]);
   if (loading) return <main className="home-missing" role="status">Loading your profile...</main>;
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
   function clearClosedChat(id) {
@@ -174,10 +198,10 @@ export default function App() {
     setMatchNotice(previous => previous?.chatId === id ? null : previous);
     setChatNotice(previous => previous?.chatId === id ? null : previous);
   }
-  const sharedProps = { onChatClosed: clearClosedChat, onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch, onPresenceError: setPresenceError };
+  const sharedProps = { onChatClosed: clearClosedChat, onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch, onPresenceError: setPresenceError, unreadMatchCount };
   return <>
     <MatchWatcher userId={profile?.id} onMatch={onMatch} />
-    <PresenceHeartbeat active={Boolean(profile && session && !loggingOut)} onError={setPresenceError} />
+    <PresenceHeartbeat active={Boolean(profile && pathname === '/home' && session?.queueMode === 'active' && !loggingOut)} onError={setPresenceError} />
     <div className="notification-stack">
     {chatNotice && <aside className="match-notice" aria-label="New message"><div role="status"><strong>New chat message</strong><p>Your study buddy sent you a message.</p></div><button onClick={() => { setMatch({ chatId: chatNotice.chatId }); setChatNotice(null); goTo('/chat'); }}>Open chats ↗</button><button className="match-notice-dismiss" aria-label="Dismiss" onClick={() => setChatNotice(null)}>×</button></aside>}
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}

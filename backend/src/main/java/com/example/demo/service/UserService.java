@@ -23,7 +23,7 @@ import java.util.Set;
 @Service
 public class UserService {
     private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "preferredStudyLocations");
-    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "studyDurationMinutes", "classes", "studying", "preferredStudyLocations");
+    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "studyDurationMinutes", "offlineDiscoverable", "classes", "studying", "preferredStudyLocations");
     private static final Duration PROFILE_CACHE_TTL = Duration.ofMinutes(15);
     private static final String PROFILE_CACHE_PREFIX = "profile:";
     private final JdbcTemplate jdbcTemplate;
@@ -131,6 +131,11 @@ public class UserService {
         return userId;
     }
 
+    private static boolean booleanValue(Object rawValue, String fieldName) {
+        if (!(rawValue instanceof Boolean)) throwInvalid(fieldName, fieldName + " is invalid");
+        return (Boolean) rawValue;
+    }
+
     /** Bulk path for generated development profiles; all inserts share the caller's transaction. */
     @Transactional
     public List<Long> registerTestProfiles(List<Registration> registrations) {
@@ -209,6 +214,8 @@ public class UserService {
             jdbcTemplate.update("UPDATE users SET major=?,updated_at=? WHERE id=?", optionalText(requestBody.get("major"), "major", 100), timestamp, userId);
         if (requestBody.containsKey("studyDurationMinutes"))
             jdbcTemplate.update("UPDATE users SET study_duration_minutes=?,updated_at=? WHERE id=?", studyDurationMinutes(requestBody.get("studyDurationMinutes")), timestamp, userId);
+        if (requestBody.containsKey("offlineDiscoverable"))
+            jdbcTemplate.update("UPDATE users SET offline_discoverable=?,updated_at=? WHERE id=?", booleanValue(requestBody.get("offlineDiscoverable"), "offlineDiscoverable") ? 1 : 0, timestamp, userId);
         if (requestBody.keySet().stream().anyMatch(PROFILE_ARRAY_FIELDS::contains)) {
             Map<String, Object> completeProfile = new HashMap<>(find(userId).serialize(true));
             completeProfile.putAll(requestBody);
@@ -313,7 +320,7 @@ public class UserService {
 
     private Users loadUser(long userId) {
         try {
-            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), textValues(userId, "user_preferred_locations", "location")), userId);
+            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,offline_discoverable,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), textValues(userId, "user_preferred_locations", "location")), userId);
             if (user == null) throw new EmptyResultDataAccessException(1);
             return user;
         } catch (EmptyResultDataAccessException exception) {

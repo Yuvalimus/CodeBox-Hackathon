@@ -60,6 +60,10 @@
 .profile-card select, .profile-card textarea { width: 100%; font: inherit; font-size: 14px; border: 1px solid var(--border); border-radius: 7px; padding: 13px; color: var(--ink); background: white; }
 .profile-card select { height: 49px; }
 .profile-card textarea { resize: vertical; }
+.offline-discovery { display: flex; align-items: flex-start; gap: 12px; margin-top: 20px; padding: 14px; border: 1px solid var(--border); border-radius: 9px; cursor: pointer; }
+.offline-discovery input { width: 18px; height: 18px; margin-top: 2px; accent-color: var(--ink); }
+.offline-discovery span { display: grid; gap: 4px; }
+.offline-discovery small { color: var(--muted); line-height: 1.45; }
 .profile-card select:focus-visible, .profile-card textarea:focus-visible { outline: 3px solid var(--ink); outline-offset: 3px; }
 .profile-missing { padding: 60px 24px; text-align: center; }
 .profile-missing > svg { width: 50px; height: 50px; }

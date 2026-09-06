@@ -36,6 +36,8 @@ public class RecommendationService {
         }
     }
 
+    public enum QueueMode { ACTIVE, OFFLINE }
+
     public record Candidate(
         long id,
         String username,
@@ -118,26 +120,36 @@ public class RecommendationService {
         return yearDifference == 0 ? 1 : Math.max(0, 1 - yearDifference / 4.0);
     }
 
-    public List<Candidate> recommendations(long userId, int limit) {
+    public List<Candidate> recommendations(long userId, int limit, QueueMode mode) {
         chats.removeExpiredChats();
         queuePresence.removeExpiredPresences();
-        ReadCache.Key<List<Candidate>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + userId + ":" + limit);
-        return readCache.getOrLoad(cacheKey, RECOMMENDATION_CACHE_TTL, () -> loadRecommendations(userId, limit));
+        ReadCache.Key<List<Candidate>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + mode + ":" + userId + ":" + limit);
+        return readCache.getOrLoad(cacheKey, RECOMMENDATION_CACHE_TTL, () -> loadRecommendations(userId, limit, mode));
     }
 
-    private List<Candidate> loadRecommendations(long userId, int limit) {
+    private List<Candidate> loadRecommendations(long userId, int limit, QueueMode mode) {
         Users currentUser = userService.find(userId);
         Set<Long> usersWhoAcceptedMe = usersWhoAccepted(userId);
         List<Candidate> recommendations = new ArrayList<>();
-        for (Long candidateId : eligibleCandidateIds(userId)) {
+        for (Long candidateId : eligibleCandidateIds(userId, mode)) {
             Users candidate = userService.find(candidateId);
-            recommendations.add(Candidate.from(candidate, score(currentUser, candidate)));
+            recommendations.add(Candidate.from(candidate, score(currentUser, candidate, mode)));
         }
         recommendations.sort(Comparator
             .comparing((Candidate recommendation) -> !usersWhoAcceptedMe.contains(recommendation.id()))
             .thenComparing(Comparator.comparingDouble(Candidate::compatibility).reversed())
             .thenComparingLong(Candidate::id));
         return List.copyOf(recommendations.subList(0, Math.min(limit, recommendations.size())));
+    }
+
+    private double score(Users firstUser, Users secondUser, QueueMode mode) {
+        if (mode == QueueMode.ACTIVE) {
+            return score(firstUser, secondUser);
+        }
+        return score(new CompatibilityProfile(
+            new HashSet<>(firstUser.classes()), firstUser.studyDurationMinutes(), firstUser.gradYear()),
+            new CompatibilityProfile(
+                new HashSet<>(secondUser.classes()), secondUser.studyDurationMinutes(), secondUser.gradYear()));
     }
 
     private Set<Long> usersWhoAccepted(long userId) {
@@ -147,23 +159,25 @@ public class RecommendationService {
             Long.class, userId, java.time.Instant.now().minus(MatchService.DECISION_TTL).toString()));
     }
 
-    private List<Long> eligibleCandidateIds(long userId) {
+    private List<Long> eligibleCandidateIds(long userId, QueueMode mode) {
         String decisionCutoff = java.time.Instant.now().minus(MatchService.DECISION_TTL).toString();
+        String queueEligibility = mode == QueueMode.ACTIVE
+            ? "(EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))"
+            : "(users.offline_discoverable=1 OR EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))";
+        Object[] parameters = new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId,
+            userId, decisionCutoff, userId, userId, userId};
+        String sharedClassTable = mode == QueueMode.ACTIVE ? "user_studying" : "user_classes";
         return jdbcTemplate.queryForList(
             "SELECT users.id FROM users WHERE users.id<>? "
-                + "AND (EXISTS (SELECT 1 FROM user_queue_presence queue_presence "
-                + "WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) "
-                + "OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user "
-                + "WHERE permanent_test_user.user_id=users.id)) "
-                + "AND EXISTS (SELECT 1 FROM user_studying current_studying "
-                + "JOIN user_studying candidate_studying ON candidate_studying.class_name=current_studying.class_name "
-                + "WHERE current_studying.user_id=? AND candidate_studying.user_id=users.id) "
+                + "AND " + queueEligibility + " "
+                + "AND EXISTS (SELECT 1 FROM " + sharedClassTable + " current_class "
+                + "JOIN " + sharedClassTable + " candidate_class ON candidate_class.class_name=current_class.class_name "
+                + "WHERE current_class.user_id=? AND candidate_class.user_id=users.id) "
                 + "AND users.id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=? "
                 + "AND (decision='deferred' OR created_at>?)) "
                 + "AND users.id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
                 + "FROM matches WHERE user_a_id=? OR user_b_id=?) "
                 + "ORDER BY users.id",
-            Long.class, userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId,
-            userId, decisionCutoff, userId, userId, userId);
+            Long.class, parameters);
     }
 }

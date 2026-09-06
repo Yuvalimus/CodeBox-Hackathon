@@ -21,9 +21,9 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
       if (!lock.current && !gesture.current && !loadingRef.current) {
         loadingRef.current = true;
         try {
-          const recs = await request('/recommendations?limit=50');
+          const recs = await request(`/recommendations?limit=50&queue=${session.queueMode || 'active'}`);
           if (mounted && !lock.current && !gesture.current && version === decisionVersion.current) {
-            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: (user.studying || []).filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
+            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: (session.queueMode === 'offline' ? user.classes : user.studying || []).filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
         } catch(error) { if (mounted) setApiError(error.message); }
@@ -59,6 +59,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
   const idleAction = useRef(null);
   idleAction.current = end;
   useEffect(() => {
+    if (session.queueMode !== 'active') return;
     let retryAfter = 0;
     // Keep counting across profile/chat navigation. Polling and pointer movement
     // are not swipes. Wall-clock checks also catch up after browser throttling.
@@ -76,7 +77,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
       window.removeEventListener('focus', checkIdle);
       document.removeEventListener('visibilitychange', checkIdle);
     };
-  }, []);
+  }, [session.queueMode]);
 
   useEffect(() => { region.current?.focus(); return () => { clearTimeout(timer.current); cancelAnimationFrame(dragFrame.current); }; }, []);
 
@@ -162,11 +163,11 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
 
   return <section className="discovery" ref={region} tabIndex={-1} aria-label="Study buddy discovery">
     <div className="discovery-stop"><button className="home-secondary" onClick={end} disabled={busy}>Stop looking</button></div>
-    {apiError && <p className="error" role="alert">{apiError} <button disabled={busy} onClick={() => setReload(value => value + 1)}>Retry loading</button></p>}{loading && <p role="status">Loading online study buddies...</p>}<div className="discovery-layout"><div className="discovery-main">
+    {apiError && <p className="error" role="alert">{apiError} <button disabled={busy} onClick={() => setReload(value => value + 1)}>Retry loading</button></p>}{loading && <p role="status">Loading study buddies...</p>}<div className="discovery-layout"><div className="discovery-main">
       {!loading && candidate ? <>
         <article key={candidate.id} className={`candidate-card ${exitDirection ? `card-exit-${exitDirection}` : drag ? "card-dragging" : "card-enter"}`} style={{ "--swipe-start": `translate3d(${drag}px, 0, 0) rotate(${drag / 35}deg)`, transform: exitDirection ? undefined : `translate3d(${drag}px, 0, 0) rotate(${drag / 35}deg)` }} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={cancelDrag} onLostPointerCapture={event => { if (event.target === event.currentTarget && gesture.current && !event.currentTarget.hasPointerCapture(event.pointerId)) cancelDrag(); }}>
-          <div className="candidate-color"><div className="candidate-portrait">{candidate.pictureUrl && failedPicture !== candidate.id ? <img src={candidate.pictureUrl} alt={candidate.name} draggable={false} onError={() => setFailedPicture(candidate.id)} /> : <AvatarArt avatar={candidate.avatar} label={candidate.name + ' avatar'} />}</div><span className="candidate-online">Online</span></div>
-          <div className="candidate-content"><div className="candidate-name-row"><h3>{candidate.name}</h3><ul className="candidate-class-tags" aria-label="Shared study classes">{candidate.classes.map(course => <li key={course}>{course}</li>)}</ul></div>{(candidate.major || candidate.year) && <p className="candidate-detail">{[candidate.major, candidate.year && `${candidate.year} year`].filter(Boolean).join(' · ')}</p>}{candidate.comments && <aside className="candidate-comments" aria-label={`${candidate.name}'s additional info`}><span aria-hidden="true">✦</span><div><strong>Session note</strong><p>{candidate.comments}</p></div></aside>}{Number.isFinite(candidate.studyDurationMinutes) && candidate.studyDurationMinutes > 0 && <p className="candidate-duration">Studying for {candidate.studyDurationMinutes / 60} {candidate.studyDurationMinutes === 60 ? 'hour' : 'hours'}</p>}{candidate.bio && <p className="candidate-bio">{candidate.bio}</p>}{candidate.location && <p className="candidate-location">Study spot · {candidate.location}</p>}</div>
+          <div className="candidate-color"><div className="candidate-portrait">{candidate.pictureUrl && failedPicture !== candidate.id ? <img src={candidate.pictureUrl} alt={candidate.name} draggable={false} onError={() => setFailedPicture(candidate.id)} /> : <AvatarArt avatar={candidate.avatar} label={candidate.name + ' avatar'} />}</div><span className="candidate-online">{session.queueMode === 'active' ? 'Online' : 'Available'}</span></div>
+          <div className="candidate-content"><div className="candidate-name-row"><h3>{candidate.name}</h3><ul className="candidate-class-tags" aria-label="Shared study classes">{candidate.classes.map(course => <li key={course}>{course}</li>)}</ul></div>{(candidate.major || candidate.year) && <p className="candidate-detail">{[candidate.major, candidate.year && `${candidate.year} year`].filter(Boolean).join(' · ')}</p>}{session.queueMode === 'active' && candidate.comments && <aside className="candidate-comments" aria-label={`${candidate.name}'s additional info`}><span aria-hidden="true">✦</span><div><strong>Session note</strong><p>{candidate.comments}</p></div></aside>}{Number.isFinite(candidate.studyDurationMinutes) && candidate.studyDurationMinutes > 0 && <p className="candidate-duration">Studying for {candidate.studyDurationMinutes / 60} {candidate.studyDurationMinutes === 60 ? 'hour' : 'hours'}</p>}{candidate.bio && <p className="candidate-bio">{candidate.bio}</p>}{session.queueMode === 'active' && candidate.location && <p className="candidate-location">Study spot · {candidate.location}</p>}</div>
         </article>
         <div className="discovery-actions"><button className="discovery-pass" disabled={busy} onClick={() => decide('left')}>← Pass <kbd>A / ←</kbd></button><button className="discovery-request" disabled={busy} onClick={() => decide('right')}>Request to match ↗ <kbd>D / →</kbd></button></div>
       </> : !loading && <div className="discovery-empty"><p>No profiles available right now.</p><button className="home-secondary" onClick={() => setReload(value => value + 1)}>Refresh</button></div>}
