@@ -87,7 +87,7 @@ public class ChatService {
         return response;
     }
 
-    /** Ends a direct chat and removes its corresponding match without changing queue presence. */
+    /** Ends a direct chat, requeues both users, and starts a short rematch cooldown. */
     @Transactional
     public void unmatch(long userId, String chatId) {
         member(userId, chatId);
@@ -100,8 +100,15 @@ public class ChatService {
         long firstUserId = Math.min(userId, otherUserId);
         long secondUserId = Math.max(userId, otherUserId);
         jdbcTemplate.update("DELETE FROM matches WHERE user_a_id=? AND user_b_id=?", firstUserId, secondUserId);
-        jdbcTemplate.update("DELETE FROM match_decisions WHERE (actor_user_id=? AND target_user_id=?) OR (actor_user_id=? AND target_user_id=?)",
-            userId, otherUserId, otherUserId, userId);
+        String cooldownStartedAt = Instant.now().toString();
+        jdbcTemplate.update(
+            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
+                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
+            userId, otherUserId, cooldownStartedAt);
+        jdbcTemplate.update(
+            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
+                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
+            otherUserId, userId, cooldownStartedAt);
         jdbcTemplate.update("DELETE FROM chats WHERE id=?", chatId);
         queuePresence.join(userId);
         queuePresence.join(otherUserId);
