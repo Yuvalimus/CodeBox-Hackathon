@@ -15,7 +15,8 @@ public final class Chats {
         }
     }
 
-    public record Summary(String id, long userId, String username, String createdAt, String latestMessage) {
+    public record Summary(String id, long userId, String username, String pictureUrl, String avatar,
+                          String createdAt, String latestMessage) {
         public Summary {
             latestMessage = latestMessage == null ? "" : latestMessage;
         }

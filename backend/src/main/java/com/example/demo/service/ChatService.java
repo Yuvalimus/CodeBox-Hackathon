@@ -121,7 +121,9 @@ public class ChatService {
     private List<Chats.Summary> loadChatSummaries(long userId) {
         return jdbcTemplate.query(
             "SELECT c.id,(SELECT other_member.user_id FROM chat_members other_member WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),"
-                + "(SELECT u.username FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),c.created_at,(SELECT body FROM messages m WHERE m.chat_id=c.id "
+                + "(SELECT u.username FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),"
+                + "(SELECT u.picture_url FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),"
+                + "(SELECT u.avatar FROM chat_members other_member JOIN users u ON u.id=other_member.user_id WHERE other_member.chat_id=c.id AND other_member.user_id<>? LIMIT 1),c.created_at,(SELECT body FROM messages m WHERE m.chat_id=c.id "
                 + "ORDER BY created_at DESC,id DESC LIMIT 1) latest "
                 + "FROM chats c JOIN chat_members cm ON cm.chat_id=c.id "
                 + "WHERE cm.user_id=? ORDER BY c.created_at DESC",
@@ -129,10 +131,11 @@ public class ChatService {
                 List<Chats.Summary> summaries = new ArrayList<>();
                 while (resultSet.next()) {
                     summaries.add(new Chats.Summary(
-                        resultSet.getString(1), resultSet.getLong(2), resultSet.getString(3), resultSet.getString(4), resultSet.getString(5)));
+                        resultSet.getString(1), resultSet.getLong(2), resultSet.getString(3), resultSet.getString(4),
+                        resultSet.getString(5), resultSet.getString(6), resultSet.getString(7)));
                 }
                 return List.copyOf(summaries);
-            }, userId, userId, userId);
+            }, userId, userId, userId, userId, userId);
     }
 
     private Chats.Detail loadChat(long userId, String chatId, String cursor) {
