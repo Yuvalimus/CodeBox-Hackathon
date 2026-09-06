@@ -68,13 +68,13 @@ public class TestProfileService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_count", "count must be 1 through 100");
         }
 
-        List<com.example.demo.domain.Users.PublicProfile> profiles = new java.util.ArrayList<>();
+        List<UserService.Registration> registrations = new ArrayList<>();
         for (int index = 0; index < count; index++) {
-            long userId = users.register(randomProfile(index));
-            queuePresence.joinPermanently(userId);
-            profiles.add(users.publicProfile(userId));
+            registrations.add(randomProfile(index));
         }
-        return List.copyOf(profiles);
+        List<Long> userIds = users.registerTestProfiles(registrations);
+        queuePresence.joinPermanently(userIds);
+        return userIds.stream().map(users::publicProfile).toList();
     }
 
     private UserService.Registration randomProfile(int index) {

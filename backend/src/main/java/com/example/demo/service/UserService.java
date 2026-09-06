@@ -6,6 +6,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -130,6 +131,42 @@ public class UserService {
         return userId;
     }
 
+    /** Bulk path for generated development profiles; all inserts share the caller's transaction. */
+    @Transactional
+    public List<Long> registerTestProfiles(List<Registration> registrations) {
+        List<PreparedRegistration> prepared = registrations.stream().map(this::prepareRegistration).toList();
+        String timestamp = Instant.now().toString();
+        try {
+            jdbcTemplate.batchUpdate(
+                "INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                prepared, 100, (statement, registration) -> {
+                    statement.setString(1, registration.username());
+                    statement.setString(2, registration.email());
+                    statement.setString(3, registration.passwordHash());
+                    statement.setString(4, registration.bio());
+                    statement.setString(5, registration.comments());
+                    statement.setString(6, registration.pictureUrl());
+                    statement.setString(7, registration.avatar());
+                    statement.setString(8, registration.major());
+                    statement.setObject(9, registration.gradYear());
+                    statement.setInt(10, registration.studyDurationMinutes());
+                    statement.setString(11, timestamp);
+                    statement.setString(12, timestamp);
+                });
+        } catch (DataIntegrityViolationException exception) {
+            throw emailAlreadyUsed();
+        }
+        Map<String, Long> idsByEmail = userIdsByEmail(prepared.stream().map(PreparedRegistration::email).toList());
+        List<RegisteredProfile> created = prepared.stream()
+            .map(registration -> new RegisteredProfile(requireUserId(idsByEmail, registration.email()), registration))
+            .toList();
+        batchInsertProfileValues(created, "user_classes", "class_name", PreparedRegistration::classes);
+        batchInsertProfileValues(created, "user_studying", "class_name", PreparedRegistration::studying);
+        batchInsertProfileValues(created, "user_preferred_locations", "location", PreparedRegistration::locations);
+        created.forEach(profile -> invalidateUserReads(profile.userId()));
+        return created.stream().map(RegisteredProfile::userId).toList();
+    }
+
     public long login(String email, String password) {
         Credentials credentials;
         try {
@@ -227,6 +264,43 @@ public class UserService {
         replaceTextArray(userId, "user_preferred_locations", "location", locations);
     }
 
+    private PreparedRegistration prepareRegistration(Registration registration) {
+        List<String> classes = stringArray(registration.classes(), "classes", 30, 80);
+        List<String> studying = stringArray(registration.studying(), "studying", 30, 80);
+        List<String> locations = stringArray(registration.preferredStudyLocations(), "preferredStudyLocations", 20, 100);
+        if (!classes.containsAll(studying)) {
+            throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_studying", "studying must be a subset of classes");
+        }
+        return new PreparedRegistration(username(registration.username()), email(registration.email()),
+            passwordEncoder.encode(requiredText(registration.password(), "password", 8, 200)),
+            optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500),
+            pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100),
+            graduationYear(registration.gradYear()), studyDurationMinutes(registration.studyDurationMinutes()), classes, studying, locations);
+    }
+
+    private Map<String, Long> userIdsByEmail(List<String> emails) {
+        String placeholders = String.join(",", java.util.Collections.nCopies(emails.size(), "?"));
+        Map<String, Long> result = new HashMap<>();
+        jdbcTemplate.query("SELECT id,email FROM users WHERE email IN (" + placeholders + ")",
+            (RowCallbackHandler) resultSet -> result.put(resultSet.getString("email"), resultSet.getLong("id")), emails.toArray());
+        return result;
+    }
+
+    private long requireUserId(Map<String, Long> idsByEmail, String email) {
+        Long userId = idsByEmail.get(email);
+        if (userId == null) throw new IllegalStateException("Created user could not be loaded");
+        return userId;
+    }
+
+    private void batchInsertProfileValues(List<RegisteredProfile> profiles, String table, String column, java.util.function.Function<PreparedRegistration, List<String>> values) {
+        List<ProfileValue> rows = profiles.stream()
+            .flatMap(profile -> values.apply(profile.registration()).stream().map(value -> new ProfileValue(profile.userId(), value)))
+            .toList();
+        if (rows.isEmpty()) return;
+        jdbcTemplate.batchUpdate("INSERT INTO " + table + "(user_id," + column + ") VALUES(?,?)", rows, 250,
+            (statement, row) -> { statement.setLong(1, row.userId()); statement.setString(2, row.value()); });
+    }
+
     private void replaceTextArray(long userId, String tableName, String columnName, List<String> values) {
         jdbcTemplate.update("DELETE FROM " + tableName + " WHERE user_id=?", userId);
         for (String value : values)
@@ -282,6 +356,13 @@ public class UserService {
         readCache.invalidatePrefix("recommendations:");
         readCache.invalidatePrefix("looking-now:");
     }
+
+    private record PreparedRegistration(String username, String email, String passwordHash, String bio, String comments,
+                                        String pictureUrl, String avatar, String major, Integer gradYear,
+                                        int studyDurationMinutes, List<String> classes, List<String> studying,
+                                        List<String> locations) { }
+    private record RegisteredProfile(long userId, PreparedRegistration registration) { }
+    private record ProfileValue(long userId, String value) { }
 
     private record Credentials(long userId, String passwordHash) {
     }

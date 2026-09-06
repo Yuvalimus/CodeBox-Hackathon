@@ -6,6 +6,7 @@ import com.example.demo.service.*;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import java.util.HashSet;
+import java.util.List;
 import java.time.Year;
 import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
@@ -16,18 +17,18 @@ class TestProfileServiceTests {
     void createsOneHundredCompleteProfilesWithBalancedCourseLoads() {
         UserService users = mock(UserService.class);
         QueuePresenceService queue = mock(QueuePresenceService.class);
-        var nextId = new java.util.concurrent.atomic.AtomicLong();
-        when(users.register(any())).thenAnswer(call -> nextId.incrementAndGet());
+        when(users.registerTestProfiles(anyList())).thenAnswer(call -> java.util.stream.LongStream.rangeClosed(1, ((List<?>) call.getArgument(0)).size()).boxed().toList());
         when(users.publicProfile(anyLong())).thenReturn(mock(Users.PublicProfile.class));
         var service = new TestProfileService(users, queue, true);
         assertEquals(100, service.create(100).size());
-        var registrations = ArgumentCaptor.forClass(UserService.Registration.class);
-        verify(users, times(100)).register(registrations.capture());
-        verify(queue, times(100)).joinPermanently(anyLong());
+        @SuppressWarnings({"unchecked", "rawtypes"})
+        ArgumentCaptor<List<UserService.Registration>> registrations = ArgumentCaptor.forClass((Class) List.class);
+        verify(users).registerTestProfiles(registrations.capture());
+        verify(queue).joinPermanently(anyList());
         int total = 0;
         var emails = new HashSet<String>();
         var bios = new HashSet<String>();
-        for (var profile : registrations.getAllValues()) {
+        for (var profile : registrations.getValue()) {
             assertFalse(profile.major().isBlank());
             assertTrue(profile.bio().length() > 30 && profile.bio().length() < 500);
             assertTrue(profile.classes().size() >= 4 && profile.classes().size() <= 6);
