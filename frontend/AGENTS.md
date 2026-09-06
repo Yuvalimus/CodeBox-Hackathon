@@ -63,3 +63,5 @@ The product name is undecided. `KennedyMatch` is only a candidate, not an approv
 
 
 - Use light mode only. Matches & chats opens a row list with an empty state and per-row Unmatch actions. Chat navigation must not redirect users home for missing matches. Keep the message composer within the viewport.
+
+- Stop looking automatically after 60 seconds without a swipe decision (gesture, Pass/Request button, or keyboard). Count time across in-app navigation; use the same offline endpoint as Stop looking and clean up the timer when the session ends.

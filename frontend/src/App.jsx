@@ -169,12 +169,19 @@ export default function App() {
   }, [profile?.id]);
   if (loading) return <main className="home-missing" role="status">Loading your profile...</main>;
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
-  const sharedProps = { onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch, onPresenceError: setPresenceError };
+  function clearClosedChat(id) {
+    setMatch(previous => previous?.chatId === id ? null : previous);
+    setMatchNotice(previous => previous?.chatId === id ? null : previous);
+    setChatNotice(previous => previous?.chatId === id ? null : previous);
+  }
+  const sharedProps = { onChatClosed: clearClosedChat, onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch, onPresenceError: setPresenceError };
   return <>
     <MatchWatcher userId={profile?.id} onMatch={onMatch} />
     <PresenceHeartbeat active={Boolean(profile && session && !session.testDeck && !loggingOut)} onError={setPresenceError} />
+    <div className="notification-stack">
     {chatNotice && <aside className="match-notice" aria-label="New message"><div role="status"><strong>New chat message</strong><p>Your study buddy sent you a message.</p></div><button onClick={() => { setMatch({ chatId: chatNotice.chatId }); setChatNotice(null); goTo('/chat'); }}>Open chats ↗</button><button className="match-notice-dismiss" aria-label="Dismiss" onClick={() => setChatNotice(null)}>×</button></aside>}
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}
+    </div>
     {presenceError && <p role="alert" className="error">{presenceError}</p>}
     {profile && <div hidden={pathname !== '/home'}><HomePage {...sharedProps} session={session} setSession={setSession} active={pathname === '/home'} /></div>}
     {pathname !== '/home' ? <Page {...sharedProps} /> : !profile && <HomePage {...sharedProps} session={session} setSession={setSession} />}

@@ -24,3 +24,4 @@
 @keyframes chat-open { from { opacity: .2; transform: translateY(12px) scale(.985); } to { opacity: 1; transform: none; } }
 @media(max-width:600px) { .chat-page { padding: 16px; }.chat-shell { height: calc(100dvh - 90px); }.chat-list { padding: 6px 12px; }.chat-list-row { gap: 4px; }.chat-open-row { gap: 10px; } }
 @media(prefers-reduced-motion:reduce) { .chat-active { animation: none; } }
+.chat-header-actions { display: flex; align-items: center; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }

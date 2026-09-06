@@ -4,7 +4,7 @@ import { mediaUrl } from '../api.js';
 import AvatarArt from './AvatarArt.jsx';
 import './ChatPanel.css';
 
-export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
+export default function ChatPanel({ profile, initialChatId, onUnmatch, onChatClosed }) {
   const [chats, setChats] = useState([]);
   const [matches, setMatches] = useState([]);
   const [chat, setChat] = useState(null);
@@ -13,8 +13,13 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const [busy, setBusy] = useState(false);
   const [loading, setLoading] = useState(false);
   const sequence = useRef(0);
+  const closedCallback = useRef(onChatClosed);
+  closedCallback.current = onChatClosed;
   function handleChatError(error, id) {
     if (error.code === 'not_chat_member' || error.status === 404) {
+      sequence.current++;
+      setLoading(false);
+      closedCallback.current?.(id);
       setChat(previous => previous?.id === id ? null : previous);
       setChats(previous => previous.filter(item => item.id !== id));
       setMatches([]);
@@ -60,6 +65,28 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
     return () => window.removeEventListener('chat-message', receive);
   }, []);
 
+  // The backend has no unmatch socket event. Check membership while a chat is
+  // open, and stop checking as soon as the view closes or changes conversations.
+  useEffect(() => {
+    if (!chat?.id) return;
+    const id = chat.id;
+    let stopped = false;
+    let timer;
+    async function check() {
+      try {
+        await request(`/chats/${id}`);
+      } catch (error) {
+        if (!stopped && (error.code === 'not_chat_member' || error.status === 404)) {
+          handleChatError(error, id);
+          return;
+        }
+      }
+      if (!stopped) timer = setTimeout(check, 3000);
+    }
+    timer = setTimeout(check, 3000);
+    return () => { stopped = true; clearTimeout(timer); };
+  }, [chat?.id]);
+
   async function send(event) {
     event.preventDefault();
     if (busy || !body.trim()) return;
@@ -83,6 +110,7 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
       setMatches([]);
       setBody('');
       setError('You are unmatched and available to find another study buddy.');
+      closedCallback.current?.(id);
       await onUnmatch?.();
     } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
   }
@@ -90,7 +118,7 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const buddyId = chats.find(item => item.id === chat?.id)?.userId;
   const buddy = chat?.buddy || matches.find(match => match.user.id === buddyId)?.user;
   return <section className="chat-shell">
-    <header className="chat-topbar"><div>{chat && <button className="chat-action" disabled={busy} onClick={() => { sequence.current++; setChat(null); setError(''); }}>&#8592; All matches</button>}<h2>{chat ? chatUsername : 'Matches & chats'}</h2><p>{chat ? 'Study buddy chat' : 'Your study buddies, all in one place'}</p></div><button className="chat-action" disabled={loading || busy} onClick={refresh}>Refresh</button></header>
+    <header className="chat-topbar"><div>{chat && <button className="chat-action" disabled={busy} onClick={() => { sequence.current++; setChat(null); setError(''); }}>&#8592; All matches</button>}<h2>{chat ? chatUsername : 'Matches & chats'}</h2><p>{chat ? 'Study buddy chat' : 'All matches are removed within 24 hours.'}</p></div><div className="chat-header-actions"><button className="chat-action" disabled={loading || busy} onClick={refresh}>Refresh</button>{chat && <button className="chat-action chat-unmatch" disabled={loading || busy} onClick={() => unmatch({ id: chat.id, username: chatUsername })}>Unmatch</button>}</div></header>
     {loading && <p className="chat-status" role="status">Loading...</p>}{error && <p className="error chat-status" role="alert">{error}</p>}
     {!chat && <div className="chat-list">{chats.map(item => <div className="chat-list-row" key={item.id}><button className="chat-open-row" disabled={busy || loading} onClick={() => open(item.id)}><span className="chat-list-avatar">{item.pictureUrl ? <img src={mediaUrl(item.pictureUrl)} alt="" /> : <AvatarArt avatar={item.avatar} />}</span><span className="chat-row-copy"><strong>{item.username || 'Study buddy'}</strong><small>{item.latestMessage || 'Say hello and make a study plan.'}</small></span><span aria-hidden="true">&#8594;</span></button><button className="chat-action chat-unmatch" disabled={busy || loading} onClick={() => unmatch(item)}>Unmatch</button></div>)}{!chats.length && !loading && <div className="chat-empty"><h3>No matches yet</h3><p>When you both choose to study together, your conversation will appear here.</p></div>}</div>}
     {chat && <div className="chat-active" key={chat.id}>

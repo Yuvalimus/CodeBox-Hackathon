@@ -1,4 +1,4 @@
-﻿import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { request, fromUser } from '../api.js';
 import { getMockCandidates } from '../data/mockDiscovery.js';
 import AvatarArt from './AvatarArt.jsx';
@@ -37,7 +37,15 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
     refresh();
     return () => { mounted = false; clearTimeout(refreshTimer); };
   }, [session, reload, active]);
-  async function end() { if (busy) return; setBusy(true); try { await onEnd(); } catch(error) { setApiError(error.message); } finally { setBusy(false); } }
+  const stopping = useRef(false);
+  async function end() {
+    if (busy || lock.current || stopping.current) return;
+    stopping.current = true;
+    setBusy(true);
+    try { await onEnd(); }
+    catch (error) { setApiError(error.message); }
+    finally { stopping.current = false; setBusy(false); }
+  }
   const [index, setIndex] = useState(0);
   const [requests, setRequests] = useState([]);
   const [message, setMessage] = useState('');
@@ -49,12 +57,35 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
   const timer = useRef(null);
   const region = useRef(null);
   const candidate = candidates[index];
+  const lastSwipeAt = useRef(Date.now());
+  const idleAction = useRef(null);
+  idleAction.current = end;
+  useEffect(() => {
+    let retryAfter = 0;
+    // Keep counting across profile/chat navigation. Polling and pointer movement
+    // are not swipes. Wall-clock checks also catch up after browser throttling.
+    function checkIdle() {
+      const now = Date.now();
+      if (now - lastSwipeAt.current < 60000 || now < retryAfter) return;
+      retryAfter = now + 10000;
+      void idleAction.current();
+    }
+    const interval = setInterval(checkIdle, 1000);
+    window.addEventListener('focus', checkIdle);
+    document.addEventListener('visibilitychange', checkIdle);
+    return () => {
+      clearInterval(interval);
+      window.removeEventListener('focus', checkIdle);
+      document.removeEventListener('visibilitychange', checkIdle);
+    };
+  }, []);
 
   useEffect(() => { region.current?.focus(); return () => clearTimeout(timer.current); }, []);
 
   const decide = useCallback(async (direction) => {
     if (!candidate || lock.current || loading || busy || apiError) return;
     if (Date.parse(candidate.expiresAt) <= Date.now()) { setMessage('This student is no longer online.'); setIndex(previous => previous + 1); return; }
+    lastSwipeAt.current = Date.now();
     decisionVersion.current += 1;
     lock.current = true; setBusy(true); setApiError('');
     try {
