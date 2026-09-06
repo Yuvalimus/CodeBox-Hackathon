@@ -184,6 +184,8 @@ For a mutual accept, returns the created (or existing) match and direct chat:
 }
 ```
 
+When a match is created, both users' outstanding requests to other people are removed, so they no longer appear at the front of anyone else's recommendation queue.
+
 ### `POST /recommendations/{userId}/reject`
 
 Records a reciprocal rejection and returns `204 No Content`. Both users are hidden from one another's recommendations for five minutes.

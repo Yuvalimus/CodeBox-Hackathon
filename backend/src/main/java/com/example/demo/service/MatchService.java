@@ -68,6 +68,7 @@ public class MatchService {
         }
 
         String chatId = findOrCreateDirectChat(currentUserId, targetUserId, createdAt);
+        clearOutstandingRequests(currentUserId, targetUserId);
         invalidateRelationshipReads();
         return Optional.of(new Decision("accepted", true, new MatchReference(matchId), new ChatReference(chatId)));
     }
@@ -90,6 +91,13 @@ public class MatchService {
             "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,?,?) "
                 + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision=excluded.decision,created_at=excluded.created_at",
             actorUserId, targetUserId, decision, createdAt);
+    }
+
+    private void clearOutstandingRequests(long firstUserId, long secondUserId) {
+        jdbcTemplate.update(
+            "DELETE FROM match_decisions WHERE actor_user_id IN (?,?) AND target_user_id NOT IN (?,?) "
+                + "AND decision IN ('accepted','deferred')",
+            firstUserId, secondUserId, firstUserId, secondUserId);
     }
 
     private boolean hasReciprocalAcceptance(long currentUserId, long targetUserId) {

@@ -29,14 +29,17 @@ public final class ReadCache {
             throw new IllegalArgumentException("Cache TTL must be positive");
         }
 
-        CacheEntry cacheEntry = entries.compute(cacheKey.value(), (key, existingEntry) -> {
-            Instant now = Instant.now();
-            if (existingEntry != null && existingEntry.expiresAt().isAfter(now)) {
-                return existingEntry;
-            }
-            return new CacheEntry(loader.get(), now.plus(timeToLive));
-        });
-        return cast(cacheEntry.value());
+        CacheEntry existingEntry = entries.get(cacheKey.value());
+        Instant now = Instant.now();
+        if (existingEntry != null && existingEntry.expiresAt().isAfter(now)) {
+            return cast(existingEntry.value());
+        }
+
+        // A recommendation load also loads profile cache entries. ConcurrentHashMap.compute
+        // forbids those nested map updates and can throw "Recursive update" under load.
+        CacheEntry loadedEntry = new CacheEntry(loader.get(), now.plus(timeToLive));
+        entries.put(cacheKey.value(), loadedEntry);
+        return cast(loadedEntry.value());
     }
 
     public <T> void put(Key<T> cacheKey, T value, Duration timeToLive) {

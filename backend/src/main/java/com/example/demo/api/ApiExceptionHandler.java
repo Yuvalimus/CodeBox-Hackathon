@@ -28,8 +28,19 @@ public class ApiExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiErrorResponse> unknown(Exception exception, HttpServletRequest request) {
-        log.error("Unhandled API exception for {} {}", request.getMethod(), request.getRequestURI(), exception);
+        Throwable rootCause = rootCause(exception);
+        log.error("Unhandled API exception for {} {}: {}: {}", request.getMethod(), request.getRequestURI(),
+            rootCause.getClass().getSimpleName(), rootCause.getMessage());
+        log.debug("Full unhandled API exception for {} {}", request.getMethod(), request.getRequestURI(), exception);
         return ResponseEntity.internalServerError()
             .body(ApiErrorResponse.of("internal_error", "An unexpected error occurred"));
+    }
+
+    private Throwable rootCause(Throwable exception) {
+        Throwable current = exception;
+        while (current.getCause() != null && current.getCause() != current) {
+            current = current.getCause();
+        }
+        return current;
     }
 }
