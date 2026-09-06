@@ -116,7 +116,7 @@ Returns the complete updated profile. Its `pictureUrl` is a public URL such as `
 
 ## Online queue
 
-Users must be in the online queue to appear in recommendations. The client joins the queue only after the user starts looking for a study buddy, sends a heartbeat every 30 seconds for that active discovery session, and leaves the queue when the user stops looking or navigates away. A user is removed automatically after three missed heartbeats (90 seconds). Generated development test profiles are permanent queue members and do not need heartbeats.
+Users must be in the online queue to appear in recommendations. The client joins the queue only after the user starts looking for a study buddy, sends a heartbeat every 30 seconds for that active discovery session, and leaves the queue when the user stops looking or navigates away. A user is removed after one minute without an accept or reject decision, even if heartbeats continue; each swipe refreshes that activity timer. A user is also removed after three missed heartbeats (90 seconds). Generated development test profiles are permanent queue members and do not need heartbeats.
 
 ### `POST /queue`
 

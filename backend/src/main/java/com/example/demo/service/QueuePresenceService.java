@@ -13,6 +13,7 @@ import java.time.Instant;
 public class QueuePresenceService {
     public static final Duration HEARTBEAT_INTERVAL = Duration.ofSeconds(30);
     public static final Duration OFFLINE_AFTER = HEARTBEAT_INTERVAL.multipliedBy(3);
+    public static final Duration SWIPE_IDLE_AFTER = Duration.ofMinutes(1);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
 
     private final JdbcTemplate jdbcTemplate;
@@ -36,17 +37,26 @@ public class QueuePresenceService {
             "UPDATE user_queue_presence SET last_heartbeat_at=? WHERE user_id=?",
             now.toString(), userId);
         if (refreshed == 0) return new Status(true, false, false, now.plus(OFFLINE_AFTER).toString());
-        return response(true, now);
+        return response(true, now, lastSwipeAt(userId));
     }
 
     public Status join(long userId) {
         Instant now = Instant.now();
         jdbcTemplate.update(
-            "INSERT INTO user_queue_presence(user_id,last_heartbeat_at) VALUES(?,?) "
-                + "ON CONFLICT(user_id) DO UPDATE SET last_heartbeat_at=excluded.last_heartbeat_at",
-            userId, now.toString());
+            "INSERT INTO user_queue_presence(user_id,last_heartbeat_at,last_swipe_at) VALUES(?,?,?) "
+                + "ON CONFLICT(user_id) DO UPDATE SET last_heartbeat_at=excluded.last_heartbeat_at,last_swipe_at=excluded.last_swipe_at",
+            userId, now.toString(), now.toString());
         invalidateRecommendationReads();
-        return response(true, now);
+        return response(true, now, now);
+    }
+
+    public void recordSwipe(long userId) {
+        Instant now = Instant.now();
+        jdbcTemplate.update(
+            "INSERT INTO user_queue_presence(user_id,last_heartbeat_at,last_swipe_at) VALUES(?,?,?) "
+                + "ON CONFLICT(user_id) DO UPDATE SET last_heartbeat_at=excluded.last_heartbeat_at,last_swipe_at=excluded.last_swipe_at",
+            userId, now.toString(), now.toString());
+        invalidateRecommendationReads();
     }
 
     /** Test profiles are always available as local development recommendations. */
@@ -71,10 +81,10 @@ public class QueuePresenceService {
                 return resultSet.getBoolean(1);
             }, userId);
         if (Boolean.TRUE.equals(permanent)) return new Status(true, true, true, null);
-        String heartbeat = jdbcTemplate.query(
-            "SELECT last_heartbeat_at FROM user_queue_presence WHERE user_id=?",
-            resultSet -> resultSet.next() ? resultSet.getString(1) : null, userId);
-        if (heartbeat != null) return response(true, Instant.parse(heartbeat));
+        QueueTimestamp queueTimestamp = jdbcTemplate.query(
+            "SELECT last_heartbeat_at,last_swipe_at FROM user_queue_presence WHERE user_id=?",
+            resultSet -> resultSet.next() ? new QueueTimestamp(Instant.parse(resultSet.getString(1)), Instant.parse(resultSet.getString(2))) : null, userId);
+        if (queueTimestamp != null) return response(true, queueTimestamp.heartbeat(), queueTimestamp.swipe());
         String siteHeartbeat = jdbcTemplate.query(
             "SELECT last_heartbeat_at FROM user_site_presence WHERE user_id=?",
             resultSet -> resultSet.next() ? resultSet.getString(1) : null, userId);
@@ -84,7 +94,10 @@ public class QueuePresenceService {
     }
 
     public void removeExpiredPresences() {
-        int deleted = jdbcTemplate.update("DELETE FROM user_queue_presence WHERE last_heartbeat_at<=?", Instant.now().minus(OFFLINE_AFTER).toString());
+        Instant now = Instant.now();
+        int deleted = jdbcTemplate.update(
+            "DELETE FROM user_queue_presence WHERE last_heartbeat_at<=? OR last_swipe_at<=?",
+            now.minus(OFFLINE_AFTER).toString(), now.minus(SWIPE_IDLE_AFTER).toString());
         if (deleted > 0) invalidateRecommendationReads();
     }
 
@@ -101,7 +114,17 @@ public class QueuePresenceService {
         });
     }
 
-    private Status response(boolean online, Instant heartbeat) {
-        return new Status(online, online, false, heartbeat.plus(OFFLINE_AFTER).toString());
+    private Instant lastSwipeAt(long userId) {
+        return jdbcTemplate.query(
+            "SELECT last_swipe_at FROM user_queue_presence WHERE user_id=?",
+            resultSet -> resultSet.next() ? Instant.parse(resultSet.getString(1)) : null, userId);
     }
+
+    private Status response(boolean online, Instant heartbeat, Instant swipe) {
+        Instant expiresAt = heartbeat.plus(OFFLINE_AFTER);
+        if (swipe != null && swipe.plus(SWIPE_IDLE_AFTER).isBefore(expiresAt)) expiresAt = swipe.plus(SWIPE_IDLE_AFTER);
+        return new Status(online, online, false, expiresAt.toString());
+    }
+
+    private record QueueTimestamp(Instant heartbeat, Instant swipe) { }
 }

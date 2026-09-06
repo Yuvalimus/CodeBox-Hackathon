@@ -14,7 +14,7 @@ public class MaintenanceService {
         this.queuePresence = queuePresenceService;
     }
 
-    @Scheduled(fixedDelay = 60_000)
+    @Scheduled(fixedDelay = 30_000)
     public void removeExpiredState() {
         queuePresence.removeExpiredPresences();
         chats.removeExpiredChats();

@@ -51,6 +51,9 @@ public class DatabaseConfig {
             if (!matchDecisionsSupportDeferred(connection)) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V12__deferred_match_decisions.sql"));
             }
+            if (!queuePresenceHasSwipeTimestamp(connection)) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V13__queue_swipe_activity.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -97,6 +100,17 @@ public class DatabaseConfig {
         try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='match_decisions'")) {
             try (var result = statement.executeQuery()) {
                 return result.next() && result.getString(1).contains("'deferred'");
+            }
+        }
+    }
+
+    private boolean queuePresenceHasSwipeTimestamp(java.sql.Connection connection) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("PRAGMA table_info(user_queue_presence)")) {
+            try (var result = statement.executeQuery()) {
+                while (result.next()) {
+                    if ("last_swipe_at".equalsIgnoreCase(result.getString("name"))) return true;
+                }
+                return false;
             }
         }
     }
