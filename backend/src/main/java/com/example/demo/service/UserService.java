@@ -23,7 +23,7 @@ import java.util.Set;
 @Service
 public class UserService {
     private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "preferredStudyLocations");
-    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "studyDurationMinutes", "offlineDiscoverable", "classes", "studying", "preferredStudyLocations");
+    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "studyDurationMinutes", "classes", "studying", "preferredStudyLocations");
     private static final Duration PROFILE_CACHE_TTL = Duration.ofMinutes(15);
     private static final String PROFILE_CACHE_PREFIX = "profile:";
     private final JdbcTemplate jdbcTemplate;
@@ -120,7 +120,7 @@ public class UserService {
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
-            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500), pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100), graduationYear(registration.gradYear()), studyDurationMinutes(registration.studyDurationMinutes()), timestamp, timestamp);
+            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,offline_discoverable,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500), pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100), graduationYear(registration.gradYear()), studyDurationMinutes(registration.studyDurationMinutes()), 1, timestamp, timestamp);
         } catch (DataIntegrityViolationException exception) {
             throw emailAlreadyUsed();
         }
@@ -143,7 +143,7 @@ public class UserService {
         String timestamp = Instant.now().toString();
         try {
             jdbcTemplate.batchUpdate(
-                "INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)",
+                "INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,offline_discoverable,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)",
                 prepared, 100, (statement, registration) -> {
                     statement.setString(1, registration.username());
                     statement.setString(2, registration.email());
@@ -155,8 +155,9 @@ public class UserService {
                     statement.setString(8, registration.major());
                     statement.setObject(9, registration.gradYear());
                     statement.setInt(10, registration.studyDurationMinutes());
-                    statement.setString(11, timestamp);
+                    statement.setInt(11, 1);
                     statement.setString(12, timestamp);
+                    statement.setString(13, timestamp);
                 });
         } catch (DataIntegrityViolationException exception) {
             throw emailAlreadyUsed();
@@ -214,8 +215,6 @@ public class UserService {
             jdbcTemplate.update("UPDATE users SET major=?,updated_at=? WHERE id=?", optionalText(requestBody.get("major"), "major", 100), timestamp, userId);
         if (requestBody.containsKey("studyDurationMinutes"))
             jdbcTemplate.update("UPDATE users SET study_duration_minutes=?,updated_at=? WHERE id=?", studyDurationMinutes(requestBody.get("studyDurationMinutes")), timestamp, userId);
-        if (requestBody.containsKey("offlineDiscoverable"))
-            jdbcTemplate.update("UPDATE users SET offline_discoverable=?,updated_at=? WHERE id=?", booleanValue(requestBody.get("offlineDiscoverable"), "offlineDiscoverable") ? 1 : 0, timestamp, userId);
         if (requestBody.keySet().stream().anyMatch(PROFILE_ARRAY_FIELDS::contains)) {
             Map<String, Object> completeProfile = new HashMap<>(find(userId).serialize(true));
             completeProfile.putAll(requestBody);

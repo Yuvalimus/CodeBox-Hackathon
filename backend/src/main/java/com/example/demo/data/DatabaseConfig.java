@@ -60,6 +60,7 @@ public class DatabaseConfig {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V14__offline_discovery.sql"));
             }
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V15__chat_seen_state.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V16__enable_offline_discovery_by_default.sql"));
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }

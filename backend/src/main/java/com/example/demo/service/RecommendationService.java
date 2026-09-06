@@ -138,7 +138,7 @@ public class RecommendationService {
         List<Candidate> recommendations = new ArrayList<>();
         for (Long candidateId : eligibleCandidateIds(userId, mode)) {
             Users candidate = userService.find(candidateId);
-            if (currentClasses.isEmpty() || java.util.Collections.disjoint(currentClasses, matchingClasses(candidate, mode))) {
+            if (mode == QueueMode.ACTIVE && (currentClasses.isEmpty() || java.util.Collections.disjoint(currentClasses, matchingClasses(candidate, mode)))) {
                 continue;
             }
             recommendations.add(Candidate.from(candidate, score(currentUser, candidate, mode)));
@@ -182,7 +182,7 @@ public class RecommendationService {
         String decisionCutoff = java.time.Instant.now().minus(MatchService.DECISION_TTL).toString();
         String queueEligibility = mode == QueueMode.ACTIVE
             ? "(EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))"
-            : "(users.offline_discoverable=1 OR EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))";
+            : "1=1";
         Object[] parameters = new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(),
             userId, decisionCutoff, userId, userId, userId};
         return jdbcTemplate.queryForList(

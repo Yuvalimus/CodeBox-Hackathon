@@ -87,7 +87,7 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `offlineDiscoverable`, `classes`, `studying`, and `preferredStudyLocations`. `offlineDiscoverable` defaults to `false`; when enabled, the profile can appear in the offline discovery queue whether or not the user is also actively queued. `studyDurationMinutes` is an integer from `15` through `480`, in 15-minute increments; it defaults to `60`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `classes`, `studying`, and `preferredStudyLocations`. Every profile is included in offline discovery; this is not a profile setting. `studyDurationMinutes` is an integer from `15` through `480`, in 15-minute increments; it defaults to `60`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
@@ -140,7 +140,7 @@ Immediately removes the authenticated user from recommendations. Use this for a 
 
 Returns up to 20 candidates by default; `limit` must be from 1 through 50. `queue=active` returns people currently in the heartbeat-backed queue. `queue=offline` returns everyone who opted in to offline discovery plus everyone currently active in the heartbeat-backed queue; no heartbeat is required to browse that queue.
 
-Offline discovery is opt-in through `PATCH /me` with `offlineDiscoverable: true`. A mutual match created from either queue creates the usual direct chat; the person completing the mutual match receives the normal match notification, and the other person sees the match when they next return.
+Offline discovery is enabled for every user. The Later queue can show any user; shared saved classes improve their ranking but are not required. A mutual match created from either queue creates the usual direct chat; the person completing the mutual match receives the normal match notification, and the other person sees the match when they next return.
 
 ```json
 {

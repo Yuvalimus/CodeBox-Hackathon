@@ -55,7 +55,7 @@ export function fromUser(user, local = {}) {
   return { ...user, pictureUrl: mediaUrl(user.pictureUrl), name: user.username || local.name, year: local.year || yearForGradYear(user.gradYear), avatar: user.avatar || local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], studyTimes: user.studyTimes || [], major: user.major || '', bio: user.bio || '' };
 }
 export function profileBody(profile) {
-  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, gradYear: gradYearFor(profile.year), avatar: profile.avatar || 'sage', offlineDiscoverable: Boolean(profile.offlineDiscoverable), ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
+  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, gradYear: gradYearFor(profile.year), avatar: profile.avatar || 'sage', ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
 }
 
 export function mediaUrl(value) {

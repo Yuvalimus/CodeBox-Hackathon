@@ -3,6 +3,17 @@ import { request, fromUser } from '../api.js';
 import AvatarArt from './AvatarArt.jsx';
 import './DiscoveryDeck.css';
 
+function normalizedCourse(course) {
+  const value = course.trim().toUpperCase().replace(/\s+/g, ' ');
+  const match = value.match(/^([A-Z]{2,4})\s*(\d{4})$/);
+  return match ? match[1] + ' ' + match[2] : value;
+}
+
+function sharedClasses(currentClasses, candidateClasses) {
+  const current = new Set(currentClasses.map(normalizedCourse));
+  return candidateClasses.filter(course => current.has(normalizedCourse(course)));
+}
+
 export default function DiscoveryDeck({ session, onEnd, active = true }) {
   const [candidates, setCandidates] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -23,7 +34,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
         try {
           const recs = await request(`/recommendations?limit=50&queue=${session.queueMode || 'active'}`);
           if (mounted && !lock.current && !gesture.current && version === decisionVersion.current) {
-            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: (session.queueMode === 'offline' ? user.classes : user.studying || []).filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
+            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: sharedClasses(session.classes, session.queueMode === 'offline' ? user.classes : user.studying || []), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
         } catch(error) { if (mounted) setApiError(error.message); }

@@ -97,4 +97,5 @@
 .candidate-name-row h3 { margin: 0; flex-shrink: 0; max-width: 100%; }
 .candidate-class-tags { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 6px; flex: 1; padding: 0; margin: 0; list-style: none; }
 .candidate-class-tags li { padding: 6px 8px; border-radius: 7px; background: var(--brand); font-size: 11px; font-weight: 600; white-space: nowrap; }
+.candidate-shared-classes { margin: 9px 0 0; color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; }
 .candidate-duration { margin: 10px 0 14px; font-size: 13px; font-weight: 600; color: var(--ink); }
