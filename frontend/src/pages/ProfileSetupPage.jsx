@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AVATARS } from '../config/avatars.js';
 import AvatarArt from '../components/AvatarArt.jsx';
 import BookIcon from '../components/BookIcon.jsx';
-import { PRODUCT_NAME } from '../config/brand.js';
+import BrandName from '../components/BrandName.jsx';
 import './ProfileSetupPage.css';
 import './SetupFlow.css';
 
@@ -98,7 +98,7 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   }
 
   return <div className={`profile-setup setup-flow${editing ? ' profile-edit' : ''}`}>
-    <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a></header>
+    <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span><BrandName /></a></header>
     <main className="profile-grid">
       <form className="profile-card" onSubmit={finish} noValidate><p className="setup-progress">{editing ? 'Your profile' : `Step ${step} of 3`}</p><div className="profile-title-row">{editing && <a className="profile-title-back" href="/home" onClick={navigate} aria-label="Back to home">&#8592;</a>}<h1>{editing ? 'Edit profile.' : step === 1 ? 'Your classes.' : step === 2 ? 'A little about you.' : 'Pick an avatar.'}</h1></div>{saveError && <p role="alert" className="error">{saveError}</p>}
         {editing && <div className="field"><label htmlFor="profile-name">Name (required)</label><input id="profile-name" maxLength={32} autoComplete="name" required value={profile.name} onChange={(event) => { update('name', event.target.value); setNameError(''); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'profile-name-error' : undefined} />{nameError && <p id="profile-name-error" className="error">{nameError}</p>}</div>}

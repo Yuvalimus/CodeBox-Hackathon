@@ -1,6 +1,6 @@
-﻿import React from 'react';
+import React from 'react';
 import BookIcon from '../components/BookIcon.jsx';
-import { PRODUCT_NAME } from '../config/brand.js';
+import BrandName from '../components/BrandName.jsx';
 import './LandingPage.css';
 
 const steps = [
@@ -15,7 +15,7 @@ export default function LandingPage({ navigate, profile }) {
   return <div className="landing">
     <a className="lp-skip" href="#main-content">Skip to content</a>
     <header className="lp-header lp-container">
-      <a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}</a>
+      <a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span><BrandName /></a>
       <nav className="lp-nav" aria-label="Main navigation">
         {loggedIn ? <a className="lp-button" href="/home" onClick={navigate}>Go to home <span aria-hidden="true">↗</span></a> : <><a className="lp-login" href="/login" onClick={navigate}>Log in</a><a className="lp-button" href="/signup" onClick={navigate}>Sign up <span aria-hidden="true">↗</span></a></>}
       </nav>

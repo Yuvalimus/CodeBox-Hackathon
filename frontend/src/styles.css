@@ -20,3 +20,7 @@
 .chat-shell .error.chat-status { color: #8a252a; flex-shrink: 0; margin: 10px 16px; max-height: 25dvh; overflow-y: auto; }
 .discovery > .error { max-width: 520px; margin: 12px auto; }
 @media(max-width:650px) { .error { font-size: 15px; padding: 12px; }.error button { display: flex; width: 100%; margin: 10px 0 0; } }
+
+:root { --brand-wordmark-green: #43813d; }
+.brand-name { display: inline-block; white-space: nowrap; }
+.brand-name-w { color: var(--brand-wordmark-green); font-size: 1.18em; line-height: 1; }

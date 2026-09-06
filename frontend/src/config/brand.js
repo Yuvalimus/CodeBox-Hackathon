@@ -1,1 +1,1 @@
-﻿export const PRODUCT_NAME = 'StudyBuddy';
+export const PRODUCT_NAME = 'cramWme';
