@@ -72,13 +72,13 @@ public class UserService {
         if (rawValue == null) return List.of();
         if (!(rawValue instanceof List<?>)) throwInvalid("studyTimes", "studyTimes must be an array");
         List<?> rawHours = (List<?>) rawValue;
-        if (rawHours.size() > 168) throwInvalid("studyTimes", "studyTimes must be an array");
+        if (rawHours.size() > 672) throwInvalid("studyTimes", "studyTimes must be an array");
         Set<Integer> uniqueHours = new TreeSet<>();
         for (Object rawHour : rawHours) {
-            if (!(rawHour instanceof Number)) throwInvalid("studyTimes", "studyTimes must be hours from 0 through 167");
+            if (!(rawHour instanceof Number)) throwInvalid("studyTimes", "studyTimes must be 15-minute slots from 0 through 671");
             Number hour = (Number) rawHour;
-            if (hour.intValue() < 0 || hour.intValue() > 167 || hour.doubleValue() != hour.intValue())
-                throwInvalid("studyTimes", "studyTimes must be hours from 0 through 167");
+            if (hour.intValue() < 0 || hour.intValue() > 671 || hour.doubleValue() != hour.intValue())
+                throwInvalid("studyTimes", "studyTimes must be 15-minute slots from 0 through 671");
             uniqueHours.add(hour.intValue());
         }
         return List.copyOf(uniqueHours);

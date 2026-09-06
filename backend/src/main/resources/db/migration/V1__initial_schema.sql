@@ -29,7 +29,7 @@ CREATE TABLE IF NOT EXISTS user_studying (
 
 CREATE TABLE IF NOT EXISTS user_study_times (
                                                 user_id INTEGER NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-    hour_of_week INTEGER NOT NULL CHECK (hour_of_week BETWEEN 0 AND 167),
+    hour_of_week INTEGER NOT NULL CHECK (hour_of_week BETWEEN 0 AND 671),
     PRIMARY KEY (user_id, hour_of_week)
     );
 

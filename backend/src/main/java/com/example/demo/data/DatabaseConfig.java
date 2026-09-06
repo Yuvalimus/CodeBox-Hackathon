@@ -42,6 +42,9 @@ public class DatabaseConfig {
             }
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V8__site_presence.sql"));
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V9__match_decision_expiry.sql"));
+            if (!studyTimesSupportQuarterHours(connection)) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V10__quarter_hour_study_times.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -71,6 +74,14 @@ public class DatabaseConfig {
         try (var statement = connection.prepareStatement("PRAGMA table_info(chats)")) {
             try (var result = statement.executeQuery()) {
                 return result.next() && "TEXT".equalsIgnoreCase(result.getString("type"));
+            }
+        }
+    }
+
+    private boolean studyTimesSupportQuarterHours(java.sql.Connection connection) throws java.sql.SQLException {
+        try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_study_times'")) {
+            try (var result = statement.executeQuery()) {
+                return result.next() && result.getString(1).matches("(?is).*hour_of_week.*BETWEEN\\s+0\\s+AND\\s+671.*");
             }
         }
     }
