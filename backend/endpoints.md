@@ -157,11 +157,11 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
 }
 ```
 
-Candidates who have already accepted the authenticated user are prioritized first.
+Candidates must share at least one exact `studying` class with the authenticated user (for example, both selected `CSC 1000`). Candidates who have already accepted the authenticated user are prioritized first.
 Compatibility is ranked as 70% shared `studying` classes, 15% preferred study-duration similarity, and 15% graduation-year similarity. Study-duration similarity is the shorter requested duration divided by the longer requested duration, so equal durations receive full credit.
-Standard accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again. A rejection records the cooldown for both users, so either person is hidden from the other's recommendations during those five minutes. A deferred accept is retained only while its requester remains in the queue.
+Standard accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again. A rejection records the cooldown for both users, so either person is hidden from the other's recommendations during those five minutes.
 
-Mutual matches are exclusive while their direct chat is active: users with an active match are excluded from all recommendation lists. When the chat expires after 24 hours, its match is deleted and both users return to recommendation pools.
+Users can hold multiple active direct-chat matches. Only an already matched pair is excluded from being recommended to one another again. When a chat expires after 24 hours, that pair's match is deleted and the two users may be recommended to one another again.
 
 ### `POST /recommendations/{userId}/accept`
 
@@ -171,7 +171,7 @@ Records an accept. If the other person has not accepted yet:
 { "decision": "accepted", "matched": false }
 ```
 
-If the selected person already has an active match, the request is accepted as a deferred request and returns the same unmatched response. It does not disclose that person's matched status. The requester remains queued for that person after they unmatch, as long as the requester is still actively looking. An unexpired rejection cooldown still returns an empty JSON response (`{}`).
+An accept can create an additional match even when either person already has other active matches. An unexpired rejection cooldown still returns an empty JSON response (`{}`).
 
 For a mutual accept, returns the created (or existing) match and direct chat:
 

@@ -21,17 +21,15 @@ public class MatchService {
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
-    private final ChatService chats;
     private final ReadCache readCache;
 
     public record MatchReference(long id) { }
     public record ChatReference(String id) { }
     public record Decision(String decision, boolean matched, MatchReference match, ChatReference chat) { }
 
-    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, ReadCache readCache) {
+    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, ReadCache readCache) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
-        this.chats = chatService;
         this.readCache = readCache;
     }
 
@@ -39,11 +37,6 @@ public class MatchService {
     public Optional<Decision> accept(long currentUserId, long targetUserId) {
         validateTarget(currentUserId, targetUserId);
         String createdAt = Instant.now().toString();
-        if (chats.hasActiveChat(currentUserId) || chats.hasActiveChat(targetUserId)) {
-            recordDecision(currentUserId, targetUserId, "deferred", createdAt);
-            invalidateRelationshipReads();
-            return Optional.of(new Decision("accepted", false, null, null));
-        }
         if (hasActiveCooldown(currentUserId, targetUserId)) {
             return Optional.empty();
         }

@@ -200,18 +200,6 @@ public class ChatService {
         }
     }
 
-    public boolean hasActiveChat(long userId) {
-        removeExpiredChats();
-        Boolean activeChat = jdbcTemplate.query(
-            "SELECT EXISTS(SELECT 1 FROM chats c JOIN chat_members cm ON cm.chat_id=c.id "
-                + "WHERE cm.user_id=? AND c.created_at>?)",
-            resultSet -> {
-                resultSet.next();
-                return resultSet.getBoolean(1);
-            }, userId, Instant.now().minus(CHAT_TTL).toString());
-        return Boolean.TRUE.equals(activeChat);
-    }
-
     private record ChatPageQuery(String sql, Object[] parameters) {
         private static ChatPageQuery from(String chatId, String cursor) {
             String sql = "SELECT id,sender_user_id,body,created_at FROM messages WHERE chat_id=? ";

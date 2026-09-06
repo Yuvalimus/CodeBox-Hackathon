@@ -155,11 +155,15 @@ public class RecommendationService {
                 + "WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) "
                 + "OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user "
                 + "WHERE permanent_test_user.user_id=users.id)) "
+                + "AND EXISTS (SELECT 1 FROM user_studying current_studying "
+                + "JOIN user_studying candidate_studying ON candidate_studying.class_name=current_studying.class_name "
+                + "WHERE current_studying.user_id=? AND candidate_studying.user_id=users.id) "
                 + "AND users.id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=? "
                 + "AND (decision='deferred' OR created_at>?)) "
                 + "AND users.id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
                 + "FROM matches WHERE user_a_id=? OR user_b_id=?) "
                 + "ORDER BY users.id",
-            Long.class, userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId, decisionCutoff, userId, userId, userId);
+            Long.class, userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId,
+            userId, decisionCutoff, userId, userId, userId);
     }
 }
