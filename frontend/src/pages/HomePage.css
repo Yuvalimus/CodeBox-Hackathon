@@ -58,7 +58,7 @@
 .study-duration { margin-block: 22px; }
 
 .duration-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
-.duration-options label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 64px; margin: 0; padding: 14px 10px; border: 2px solid var(--border); border-radius: 12px; background: white; color: var(--ink); cursor: pointer; font-size: 14px; text-align: center; }
+.duration-options label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 48px; margin: 0; padding: 8px 10px; border: 2px solid var(--border); border-radius: 12px; background: white; color: var(--ink); cursor: pointer; font-size: 14px; text-align: center; }
 .duration-options label:hover { border-color: #7e956b; }
 .duration-options label.selected { background: var(--brand); border-color: var(--ink); }
 .duration-options input { position: absolute; opacity: 0; width: 1px; height: 1px; }

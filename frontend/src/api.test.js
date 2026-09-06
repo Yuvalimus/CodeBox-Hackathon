@@ -117,3 +117,22 @@ test('presence heartbeat refreshes the queue and stopping leaves the queue', asy
   assert.equal(calls, 2);
 });
 
+
+test('study duration saves before queue entry and failed saves do not join', async () => {
+  const { startStudySession } = await import('./studySession.js');
+  const calls = [];
+  globalThis.fetch = async (url, options) => {
+    calls.push({ url, ...options });
+    return new Response('{}');
+  };
+  await startStudySession({ classes: ['CSC 2001'], location: '', comments: ' Review ', durationMinutes: 90 });
+  assert.ok(calls[0].url.endsWith('/me'));
+  assert.equal(calls[0].method, 'PATCH');
+  assert.deepEqual(JSON.parse(calls[0].body), { studying: ['CSC 2001'], preferredStudyLocations: ['Kennedy Library'], comments: 'Review', studyDurationMinutes: 90 });
+  assert.ok(calls[1].url.endsWith('/queue'));
+  assert.equal(calls[1].method, 'POST');
+  let attempted = 0;
+  globalThis.fetch = async () => { attempted++; return new Response('{}', { status: 400 }); };
+  await assert.rejects(startStudySession({ classes: [], location: '', comments: '', durationMinutes: 90 }));
+  assert.equal(attempted, 1);
+});

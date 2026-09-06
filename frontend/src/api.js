@@ -1,4 +1,3 @@
-const base = (import.meta.env?.VITE_API_BASE_URL || 'https://study.happyxd.dev/api/').replace(/\/+$/, '');
 // Vite proxies this path during development, keeping browser API requests same-origin.
 const apiBase = (import.meta.env?.VITE_API_BASE_URL || (import.meta.env?.DEV ? '/api' : 'https://study.happyxd.dev/api/')).replace(/\/+$/, '');
 let token = sessionStorage.getItem('study-token');
@@ -32,7 +31,8 @@ export async function request(path, method = 'GET', body) {
   try { data = text ? JSON.parse(text) : null; } catch { throw new Error('The API returned an unexpected response. Check your API URL.'); }
   if (!response.ok) {
     if (response.status === 401 && path !== '/login' && path !== '/register' && requestToken === token) { setToken(null); window.dispatchEvent(new Event('auth-expired')); }
-    const error = new Error(data?.error?.message || `Request failed (${response.status}). Please try again.`); error.status = response.status; error.code = data?.error?.code; throw error;
+    const detail = data?.error?.message || `Request failed (${response.status}).`;
+    const error = new Error(`${detail} [${method} ${path}]`); error.status = response.status; error.code = data?.error?.code; throw error;
   }
   return data;
 }
