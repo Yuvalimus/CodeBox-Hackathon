@@ -26,11 +26,13 @@ public class ChatService {
     private final JdbcTemplate jdbcTemplate;
     private final ReadCache readCache;
     private final QueuePresenceService queuePresence;
+    private final UserService users;
 
-    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache, QueuePresenceService queuePresence) {
+    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache, QueuePresenceService queuePresence, UserService userService) {
         this.jdbcTemplate = jdbcTemplate;
         this.readCache = readCache;
         this.queuePresence = queuePresence;
+        this.users = userService;
     }
 
     public void member(long userId, String chatId) {
@@ -55,7 +57,7 @@ public class ChatService {
     public Map<String, Object> chat(long userId, String chatId, String cursor) {
         member(userId, chatId);
         ReadCache.Key<Map<String, Object>> cacheKey = ReadCache.Key.of(chatCacheKey(userId, chatId, cursor));
-        return readCache.getOrLoad(cacheKey, CHAT_DETAIL_CACHE_TTL, () -> loadChat(chatId, cursor));
+        return readCache.getOrLoad(cacheKey, CHAT_DETAIL_CACHE_TTL, () -> loadChat(userId, chatId, cursor));
     }
 
     public Map<String, Object> message(long userId, String chatId, String body) {
@@ -124,7 +126,7 @@ public class ChatService {
             }, userId, userId, userId);
     }
 
-    private Map<String, Object> loadChat(String chatId, String cursor) {
+    private Map<String, Object> loadChat(long userId, String chatId, String cursor) {
         ChatPageQuery pageQuery = ChatPageQuery.from(chatId, cursor);
         List<Chats.Message> messages = jdbcTemplate.query(pageQuery.sql(), resultSet -> {
             List<Chats.Message> result = new ArrayList<>();
@@ -139,7 +141,15 @@ public class ChatService {
             ? messages.get(49).createdAt() + "," + messages.get(49).id()
             : null;
         List<Chats.Message> pageMessages = messages.size() > 50 ? List.copyOf(messages.subList(0, 50)) : messages;
-        return Chats.serializeDetail(chatId, pageMessages, nextCursor);
+        Long buddyId = jdbcTemplate.query(
+            "SELECT user_id FROM chat_members WHERE chat_id=? AND user_id<>?",
+            resultSet -> resultSet.next() ? resultSet.getLong(1) : null, chatId, userId);
+        if (buddyId == null) {
+            throw new ApiException(HttpStatus.NOT_FOUND, "chat_not_found", "Chat not found");
+        }
+        Map<String, Object> detail = new LinkedHashMap<>(Chats.serializeDetail(chatId, pageMessages, nextCursor));
+        detail.put("buddy", users.find(buddyId).serialize(false));
+        return detail;
     }
 
     private String validateMessageBody(String body) {

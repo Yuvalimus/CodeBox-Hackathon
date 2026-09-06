@@ -71,13 +71,12 @@ public class MatchService {
     }
 
     private boolean hasReciprocalAcceptance(long currentUserId, long targetUserId) {
-        Boolean reciprocalAcceptance = jdbcTemplate.query(
+        return jdbcTemplate.query(
             "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE actor_user_id=? AND target_user_id=? AND decision='accepted' AND created_at>?)",
             resultSet -> {
                 resultSet.next();
                 return resultSet.getBoolean(1);
             }, targetUserId, currentUserId, Instant.now().minus(DECISION_TTL).toString());
-        return Boolean.TRUE.equals(reciprocalAcceptance);
     }
 
     private String findOrCreateDirectChat(long currentUserId, long targetUserId, String createdAt) {
