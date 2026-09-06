@@ -15,6 +15,8 @@ import java.util.Set;
 public class RecommendationService {
     private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofSeconds(5);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
+    private static final int WEEKLY_QUARTER_HOURS = 7 * 24 * 4;
+    private static final int MAX_TIME_DISTANCE = 4 * 4;
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
@@ -89,7 +91,7 @@ public class RecommendationService {
         Integer firstGraduationYear,
         Integer secondGraduationYear) {
         return 0.70 * jaccardOverlap(firstStudying, secondStudying)
-            + 0.15 * timeOverlap(firstStudyTimes, secondStudyTimes)
+            + 0.15 * timeProximity(firstStudyTimes, secondStudyTimes)
             + 0.15 * yearSimilarity(firstGraduationYear, secondGraduationYear);
     }
 
@@ -104,13 +106,33 @@ public class RecommendationService {
         return (double) intersection.size() / union.size();
     }
 
-    private static double timeOverlap(Set<Integer> firstValues, Set<Integer> secondValues) {
+    /**
+     * Scores how close two weekly availability sets are rather than requiring
+     * exact quarter-hour matches. Each person's nearest available time is
+     * considered, then both directions are averaged to avoid favoring a broad
+     * availability list over a narrow one.
+     */
+    private static double timeProximity(Set<Integer> firstValues, Set<Integer> secondValues) {
         if (firstValues.isEmpty() || secondValues.isEmpty()) {
             return 0;
         }
-        Set<Object> intersection = new HashSet<>(firstValues);
-        intersection.retainAll(secondValues);
-        return (double) intersection.size() / Math.min(firstValues.size(), secondValues.size());
+        return (nearestTimeScore(firstValues, secondValues) + nearestTimeScore(secondValues, firstValues)) / 2;
+    }
+
+    private static double nearestTimeScore(Set<Integer> sourceTimes, Set<Integer> targetTimes) {
+        return sourceTimes.stream()
+            .mapToDouble(source -> targetTimes.stream()
+                .mapToInt(target -> weeklyDistance(source, target))
+                .min()
+                .orElse(MAX_TIME_DISTANCE))
+            .map(distance -> Math.max(0, 1 - distance / MAX_TIME_DISTANCE))
+            .average()
+            .orElse(0);
+    }
+
+    private static int weeklyDistance(int firstTime, int secondTime) {
+        int directDistance = Math.abs(firstTime - secondTime);
+        return Math.min(directDistance, WEEKLY_QUARTER_HOURS - directDistance);
     }
 
     private static double yearSimilarity(Integer firstYear, Integer secondYear) {
