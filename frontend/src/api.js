@@ -12,10 +12,11 @@ export function setToken(value) {
   else sessionStorage.removeItem('study-token');
 }
 export const hasToken = () => Boolean(token);
-export function chatEventsUrl() {
+export async function chatEventsUrl() {
+  const { ticket } = await request('/ws/chat-ticket', 'POST');
   const endpoint = new URL(apiBase + '/ws/chat', window.location.origin);
   endpoint.protocol = endpoint.protocol === 'https:' ? 'wss:' : 'ws:';
-  endpoint.searchParams.set('token', token || '');
+  endpoint.searchParams.set('ticket', ticket);
   return endpoint.href;
 }
 export async function request(path, method = 'GET', body) {

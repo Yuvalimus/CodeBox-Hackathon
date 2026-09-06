@@ -145,8 +145,8 @@ public class RecommendationService {
 
     private Set<Long> usersWhoAccepted(long userId) {
         return new HashSet<>(jdbcTemplate.queryForList(
-            "SELECT actor_user_id FROM match_decisions WHERE target_user_id=? AND decision='accepted'",
-            Long.class, userId));
+            "SELECT actor_user_id FROM match_decisions WHERE target_user_id=? AND decision='accepted' AND created_at>?",
+            Long.class, userId, java.time.Instant.now().minus(MatchService.DECISION_TTL).toString()));
     }
 
     private List<Long> eligibleCandidateIds(long userId) {

@@ -1,7 +1,7 @@
 ﻿import PresenceHeartbeat from './components/PresenceHeartbeat.jsx';
 import { goOffline } from './presence.js';
 import { saveProfileMedia } from './profileMedia.js';
-import { request, setToken, hasToken, authenticationBody, fromUser, profileBody } from './api.js';
+import { request, setToken, hasToken, authenticationBody, fromUser, profileBody, chatEventsUrl } from './api.js';
 import React, { useEffect, useState, useRef, useCallback } from 'react';
 import MatchPage from './pages/MatchPage.jsx';
 import ChatPage from './pages/ChatPage.jsx';
@@ -34,6 +34,7 @@ const notFoundRoute = { component: NotFoundPage, title: 'Page not found' };
 export default function App() {
   const [session, setSession] = useState(null);
   const [matchNotice, setMatchNotice] = useState(null);
+  const [chatNotice, setChatNotice] = useState(null);
   const [presenceError, setPresenceError] = useState('');
   const [logoutError, setLogoutError] = useState('');
   const [loggingOut, setLoggingOut] = useState(false);
@@ -76,7 +77,7 @@ export default function App() {
   async function authenticate({ email, password, name }, signup) {
     const body = await authenticationBody({ email, password, name }, signup);
     const result = await request(signup ? '/register' : '/login', 'POST', body);
-    setSession(null); setMatchNotice(null); setPresenceError('');
+    setSession(null); setMatchNotice(null); setChatNotice(null); setPresenceError('');
     setSetupDraft(null);
     setMatch(null);
     handledChats.current.clear();
@@ -91,7 +92,7 @@ export default function App() {
     try {
       try { await goOffline(); } catch { /* Queue presence expires shortly if cleanup is unavailable. */ }
       try { await request('/logout', 'POST'); } catch { /* Local logout must not depend on network cleanup. */ }
-      setSession(null); setMatchNotice(null); setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
+      setSession(null); setMatchNotice(null); setChatNotice(null); setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
       goTo('/login');
     } finally { setLoggingOut(false); }
   }
@@ -113,7 +114,7 @@ export default function App() {
   }
   useEffect(() => {
     if (hasToken()) request('/me').then(user => setProfile(fromUser(user))).catch(error => { if (hasToken()) setLoadError(error.message); }).finally(() => setLoading(false));
-    const expired = () => { setSession(null); setMatchNotice(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear(); setLoadError(''); goTo('/login'); };
+    const expired = () => { setSession(null); setMatchNotice(null); setChatNotice(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear(); setLoadError(''); goTo('/login'); };
     window.addEventListener('auth-expired', expired);
     return () => window.removeEventListener('auth-expired', expired);
   }, []);
@@ -133,11 +134,41 @@ export default function App() {
     window.addEventListener('mutual-match', accepted);
     return () => window.removeEventListener('mutual-match', accepted);
   }, [pathname, session]);
+  useEffect(() => {
+    if (!profile) return;
+    let socket;
+    let reconnectTimer;
+    let stopped = false;
+    async function connect() {
+      try {
+        const url = await chatEventsUrl();
+        if (stopped) return;
+        socket = new WebSocket(url);
+        socket.onmessage = event => {
+          try {
+            const update = JSON.parse(event.data);
+            if (update.type !== 'chat.message' || !update.message?.id) return;
+            window.dispatchEvent(new CustomEvent('chat-message', { detail: update }));
+            if (update.message.senderUserId !== profile.id && window.location.pathname !== '/chat') {
+              setChatNotice({ chatId: update.chatId });
+            }
+          } catch { /* Ignore malformed events; a closed socket will reconnect. */ }
+        };
+        socket.onclose = () => { if (!stopped) reconnectTimer = setTimeout(connect, 2000); };
+        socket.onerror = () => socket.close();
+      } catch {
+        if (!stopped) reconnectTimer = setTimeout(connect, 2000);
+      }
+    }
+    connect();
+    return () => { stopped = true; clearTimeout(reconnectTimer); socket?.close(); };
+  }, [Boolean(profile)]);
   if (loading) return <main className="home-missing" role="status">Loading your profile...</main>;
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
   const sharedProps = { onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch };
   return <>
     <PresenceHeartbeat active={Boolean(profile)} onError={setPresenceError} />
+    {chatNotice && <aside className="match-notice" aria-label="New message"><div role="status"><strong>New chat message</strong><p>Your study buddy sent you a message.</p></div><button onClick={() => { setChatNotice(null); goTo('/chat'); }}>Open chats ↗</button><button className="match-notice-dismiss" aria-label="Dismiss" onClick={() => setChatNotice(null)}>×</button></aside>}
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}
     {presenceError && <p role="alert" className="error">{presenceError}</p>}
     {profile && <div hidden={pathname !== '/home'}><HomePage {...sharedProps} session={session} setSession={setSession} active={pathname === '/home'} /></div>}

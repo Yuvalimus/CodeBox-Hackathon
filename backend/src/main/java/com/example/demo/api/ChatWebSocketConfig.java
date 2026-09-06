@@ -1,7 +1,7 @@
 package com.example.demo.api;
 
-import com.example.demo.auth.JwtService;
 import com.example.demo.service.ChatEventSocketHandler;
+import com.example.demo.service.ChatWebSocketTicketService;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.server.ServerHttpRequest;
@@ -23,49 +23,48 @@ import java.util.Map;
 public class ChatWebSocketConfig implements WebSocketConfigurer {
     private static final Logger log = LoggerFactory.getLogger(ChatWebSocketConfig.class);
     private final ChatEventSocketHandler handler;
-    private final JwtService jwt;
+    private final ChatWebSocketTicketService tickets;
     private final String[] origins;
 
-    public ChatWebSocketConfig(ChatEventSocketHandler handler, JwtService jwt,
+    public ChatWebSocketConfig(ChatEventSocketHandler handler, ChatWebSocketTicketService ticketService,
                                @Value("${app.cors-origins}") String configuredOrigins) {
         this.handler = handler;
-        this.jwt = jwt;
+        this.tickets = ticketService;
         this.origins = Arrays.stream(configuredOrigins.split(",")).map(String::trim).filter(origin -> !origin.isEmpty()).toArray(String[]::new);
     }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
         registry.addHandler(handler, "/ws/chat")
-            .addInterceptors(new TokenHandshakeInterceptor(jwt))
+            .addInterceptors(new TicketHandshakeInterceptor(tickets))
             .setAllowedOrigins(origins);
     }
 
-    private static final class TokenHandshakeInterceptor implements HandshakeInterceptor {
-        private final JwtService jwt;
+    private static final class TicketHandshakeInterceptor implements HandshakeInterceptor {
+        private final ChatWebSocketTicketService tickets;
 
-        private TokenHandshakeInterceptor(JwtService jwt) {
-            this.jwt = jwt;
+        private TicketHandshakeInterceptor(ChatWebSocketTicketService tickets) {
+            this.tickets = tickets;
         }
 
         @Override
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                        WebSocketHandler wsHandler, Map<String, Object> attributes) {
-            String token = queryParameter(request.getURI(), "token");
+            String ticket = queryParameter(request.getURI(), "ticket");
 
-            if (token == null) {
-                log.warn("Rejected chat WebSocket handshake without a token");
+            if (ticket == null) {
+                log.warn("Rejected chat WebSocket handshake without a ticket");
                 return false;
             }
 
-            try {
-                long userId = jwt.verify(token);
-                attributes.put("userId", userId);
-                log.info("Authenticated chat WebSocket handshake for user {}", userId);
+            var userId = tickets.consume(ticket);
+            if (userId.isPresent()) {
+                attributes.put("userId", userId.getAsLong());
+                log.info("Authenticated chat WebSocket handshake for user {}", userId.getAsLong());
                 return true;
-            } catch (RuntimeException exception) {
-                log.warn("Rejected chat WebSocket handshake with an invalid token");
-                return false;
             }
+            log.warn("Rejected chat WebSocket handshake with an invalid or expired ticket");
+            return false;
         }
 
         @Override

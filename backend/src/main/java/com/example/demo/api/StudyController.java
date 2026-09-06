@@ -2,6 +2,7 @@ package com.example.demo.api;
 
 import com.example.demo.auth.JwtService;
 import com.example.demo.service.ChatService;
+import com.example.demo.service.ChatWebSocketTicketService;
 import com.example.demo.service.LookingNowService;
 import com.example.demo.service.MatchService;
 import com.example.demo.service.ProfilePictureService;
@@ -35,18 +36,20 @@ public class StudyController {
     private final RecommendationService recs;
     private final MatchService matches;
     private final ChatService chats;
+    private final ChatWebSocketTicketService chatTickets;
     private final LookingNowService looking;
     private final TestProfileService testProfiles;
     private final ProfilePictureService pictures;
     private final QueuePresenceService queuePresence;
     private final JdbcTemplate db;
 
-    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, LookingNowService lookingNowService, TestProfileService testProfileService, ProfilePictureService profilePictureService, QueuePresenceService queuePresenceService, JdbcTemplate jdbcTemplate) {
+    public StudyController(UserService userService, JwtService jwtService, RecommendationService recommendationService, MatchService matchService, ChatService chatService, ChatWebSocketTicketService chatWebSocketTicketService, LookingNowService lookingNowService, TestProfileService testProfileService, ProfilePictureService profilePictureService, QueuePresenceService queuePresenceService, JdbcTemplate jdbcTemplate) {
         this.users = userService;
         this.jwt = jwtService;
         this.recs = recommendationService;
         this.matches = matchService;
         this.chats = chatService;
+        this.chatTickets = chatWebSocketTicketService;
         this.looking = lookingNowService;
         this.testProfiles = testProfileService;
         this.pictures = profilePictureService;
@@ -98,6 +101,11 @@ public class StudyController {
         String authorizationHeader = request.getHeader("Authorization");
         jwt.revoke(authorizationHeader.substring(7));
         return ResponseEntity.noContent().build();
+    }
+
+    @PostMapping("/ws/chat-ticket")
+    public ChatTicketResponse chatTicket(HttpServletRequest request) {
+        return new ChatTicketResponse(chatTickets.issue(authenticatedUserId(request)));
     }
 
     @GetMapping("/me")
@@ -230,6 +238,7 @@ public class StudyController {
 
     public record HealthResponse(String status) { }
     public record AuthenticationResponse(String token, com.example.demo.domain.Users.Profile user) { }
+    public record ChatTicketResponse(String ticket) { }
     public record TestProfilesResponse(List<com.example.demo.domain.Users.PublicProfile> profiles) { }
     public record LookingNowResponse(List<LookingNowService.VisiblePresence> users) { }
 

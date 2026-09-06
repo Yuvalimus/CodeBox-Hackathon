@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { chatEventsUrl, request } from '../api.js';
+import { request } from '../api.js';
 
 export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const [chats, setChats] = useState([]);
@@ -48,35 +48,19 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   }
   useEffect(() => { if (initialChatId) open(initialChatId); }, [initialChatId]);
   useEffect(() => {
-    let socket;
-    let reconnectTimer;
-    let stopped = false;
-    function connect() {
-      socket = new WebSocket(chatEventsUrl());
-      socket.onmessage = event => {
-        try {
-          const update = JSON.parse(event.data);
-          if (update.type !== 'chat.message' || !update.message?.id) return;
-          setChats(previous => previous.map(item => item.id === update.chatId ? { ...item, latestMessage: update.message.body } : item));
-          setChat(previous => {
-            if (previous?.id !== update.chatId) return previous;
-            const messages = new Map(previous.messages.map(message => [message.id, message]));
-            messages.set(update.message.id, update.message);
-            return { ...previous, messages: [...messages.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id) };
-          });
-        } catch { /* Ignore malformed socket events and reconnect if the socket closes. */ }
-      };
-      socket.onclose = () => {
-        if (!stopped) reconnectTimer = setTimeout(connect, 2000);
-      };
-      socket.onerror = () => socket.close();
-    }
-    connect();
-    return () => {
-      stopped = true;
-      clearTimeout(reconnectTimer);
-      socket?.close();
+    const receive = event => {
+      const update = event.detail;
+      if (update?.type !== 'chat.message' || !update.message?.id) return;
+      setChats(previous => previous.map(item => item.id === update.chatId ? { ...item, latestMessage: update.message.body } : item));
+      setChat(previous => {
+        if (previous?.id !== update.chatId) return previous;
+        const messages = new Map(previous.messages.map(message => [message.id, message]));
+        messages.set(update.message.id, update.message);
+        return { ...previous, messages: [...messages.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id) };
+      });
     };
+    window.addEventListener('chat-message', receive);
+    return () => window.removeEventListener('chat-message', receive);
   }, []);
 
   async function send(event) {

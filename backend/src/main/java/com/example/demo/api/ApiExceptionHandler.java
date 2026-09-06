@@ -6,9 +6,13 @@ import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import jakarta.servlet.http.HttpServletRequest;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+    private static final Logger log = LoggerFactory.getLogger(ApiExceptionHandler.class);
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<ApiErrorResponse> api(ApiException exception) {
         return ResponseEntity.status(exception.status)
@@ -23,7 +27,8 @@ public class ApiExceptionHandler {
     }
 
     @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> unknown(Exception exception) {
+    public ResponseEntity<ApiErrorResponse> unknown(Exception exception, HttpServletRequest request) {
+        log.error("Unhandled API exception for {} {}", request.getMethod(), request.getRequestURI(), exception);
         return ResponseEntity.internalServerError()
             .body(ApiErrorResponse.of("internal_error", "An unexpected error occurred"));
     }
