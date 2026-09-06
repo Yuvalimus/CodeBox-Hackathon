@@ -7,6 +7,7 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.List;
 
 /** Maintains the short-lived online queue used by recommendations. */
 @Service
@@ -63,6 +64,13 @@ public class QueuePresenceService {
     public void joinPermanently(long userId) {
         jdbcTemplate.update("INSERT OR IGNORE INTO permanent_test_queue_users(user_id) VALUES(?)", userId);
         join(userId);
+    }
+
+    public void joinPermanently(List<Long> userIds) {
+        if (userIds.isEmpty()) return;
+        jdbcTemplate.batchUpdate("INSERT OR IGNORE INTO permanent_test_queue_users(user_id) VALUES(?)", userIds, 100,
+            (statement, userId) -> statement.setLong(1, userId));
+        invalidateRecommendationReads();
     }
 
     public void leave(long userId) {
