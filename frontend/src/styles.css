@@ -27,4 +27,5 @@ html[data-theme="dark"] .period-picker { background:#292929; box-shadow:inset 0 
 html[data-theme="dark"] .home-session textarea, html[data-theme="dark"] .chat-composer textarea { background:#101010; border-color:var(--border); color:var(--ink); }
 html[data-theme="dark"] .chat-conversation { background:linear-gradient(160deg, #101010, #202020); } html[data-theme="dark"] .chat-bubble-row.mine .chat-bubble { background:#4f7942; }
 html[data-theme="dark"] .landing { --lp-forest:#e5e5e5; --lp-sage:#bebebe; } html[data-theme="dark"] .lp-step { background:#171717; border-color:var(--border); } html[data-theme="dark"] .lp-how { border-color:var(--border); }
+html[data-theme="dark"] .candidate-comments { border-color:#566b50; background:#253023; } html[data-theme="dark"] .candidate-comments > span { background:#3c5136; }
 html[data-theme="dark"] .story-panel { background:#181818; } html[data-theme="dark"] .note-card { background:#252525; border-color:#555; } html[data-theme="dark"] .book-back { background:#3a3a3a; } html[data-theme="dark"] .round-sticker { color:#1a1a1a; }

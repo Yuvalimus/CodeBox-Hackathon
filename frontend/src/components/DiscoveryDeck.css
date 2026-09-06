@@ -44,8 +44,10 @@
 .candidate-common ul { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 12px 0; }
 .candidate-common li { padding: 8px 11px; background: var(--brand); border-radius: 6px; font-size: 12px; }
 .candidate-bio { font-size: 14px; line-height: 1.75; }
-.candidate-comments { font-size: 13px; line-height: 1.65; margin: 14px 0 0; }
-.candidate-comments strong { font-size: 11px; }
+.candidate-comments { display: flex; gap: 10px; margin: 14px 0 16px; padding: 12px; border: 1px solid #b7c9a7; border-radius: 10px; background: #eff5e9; color: var(--ink); font-size: 13px; line-height: 1.5; }
+.candidate-comments > span { display: grid; place-items: center; width: 24px; height: 24px; flex: 0 0 24px; border-radius: 50%; background: #d5e5c8; font-size: 12px; }
+.candidate-comments strong { display: block; font-size: 10px; letter-spacing: .8px; text-transform: uppercase; }
+.candidate-comments p { margin: 4px 0 0; }
 .discovery-actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 12px; margin-top: 10px; }
 .discovery-actions button { min-height: 50px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; font-weight: 600; }
 .discovery-pass { background: white; color: var(--ink); }
