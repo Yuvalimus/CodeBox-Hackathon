@@ -24,9 +24,6 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -80,20 +77,20 @@ public class StudyController {
     }
 
     @GetMapping("/health")
-    Map<String, Object> health() {
-        return Map.of("status", "ok");
+    public HealthResponse health() {
+        return new HealthResponse("ok");
     }
 
     @PostMapping("/register")
-    public ResponseEntity<?> register(@RequestBody RegistrationRequest request) {
-        long id = users.register(request.toServiceRequest());
-        return ResponseEntity.status(201).body(Map.of("token", jwt.issue(id), "user", users.profile(id)));
+    public ResponseEntity<AuthenticationResponse> register(@RequestBody RegistrationRequest request) {
+        long id = users.register(request.toRegistration());
+        return ResponseEntity.status(201).body(new AuthenticationResponse(jwt.issue(id), users.profile(id)));
     }
 
     @PostMapping("/login")
-    public Map<String, Object> login(@RequestBody LoginRequest request) {
+    public AuthenticationResponse login(@RequestBody LoginRequest request) {
         long id = users.login(request.email(), request.password());
-        return Map.of("token", jwt.issue(id), "user", users.profile(id));
+        return new AuthenticationResponse(jwt.issue(id), users.profile(id));
     }
 
     @PostMapping("/logout")
@@ -104,79 +101,77 @@ public class StudyController {
     }
 
     @GetMapping("/me")
-    Map<String, Object> profile(HttpServletRequest r) {
+    public com.example.demo.domain.Users.Profile profile(HttpServletRequest r) {
         return users.profile(authenticatedUserId(r));
     }
 
     @PatchMapping("/me")
-    Map<String, Object> update(HttpServletRequest r, @RequestBody Map<String, Object> b) {
+    public com.example.demo.domain.Users.Profile update(HttpServletRequest r, @RequestBody Map<String, Object> b) {
         users.update(authenticatedUserId(r), b);
         return users.profile(authenticatedUserId(r));
     }
 
     @PostMapping("/queue/heartbeat")
-    Map<String, Object> heartbeat(HttpServletRequest r) {
+    public QueuePresenceService.Status heartbeat(HttpServletRequest r) {
         return queuePresence.heartbeat(authenticatedUserId(r));
     }
 
     @PostMapping("/queue")
-    Map<String, Object> joinQueue(HttpServletRequest r) {
+    public QueuePresenceService.Status joinQueue(HttpServletRequest r) {
         return queuePresence.join(authenticatedUserId(r));
     }
 
     @GetMapping("/queue")
-    Map<String, Object> queueStatus(HttpServletRequest r) {
+    public QueuePresenceService.Status queueStatus(HttpServletRequest r) {
         return queuePresence.status(authenticatedUserId(r));
     }
 
     @DeleteMapping("/queue")
-    ResponseEntity<Void> leaveQueue(HttpServletRequest r) {
+    public ResponseEntity<Void> leaveQueue(HttpServletRequest r) {
         queuePresence.leave(authenticatedUserId(r));
         return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/me/picture")
-    Map<String, Object> uploadPicture(HttpServletRequest r, @RequestParam("file") MultipartFile file) {
+    public com.example.demo.domain.Users.Profile uploadPicture(HttpServletRequest r, @RequestParam("file") MultipartFile file) {
         long userId = authenticatedUserId(r);
         pictures.save(userId, file);
         return users.profile(userId);
     }
 
     @GetMapping("/recommendations")
-    Map<String, Object> recommendations(HttpServletRequest r, @RequestParam(defaultValue = "20") int limit) {
+    public RecommendationService.Response recommendations(HttpServletRequest r, @RequestParam(defaultValue = "20") int limit) {
         if (limit < 1 || limit > 50)
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_limit", "limit must be 1 through 50");
-        return Map.of("recommendations", recs.recommendations(authenticatedUserId(r), limit));
+        return new RecommendationService.Response(recs.recommendations(authenticatedUserId(r), limit));
     }
 
     @PostMapping("/test/profiles")
-    Map<String, Object> createTestProfiles(HttpServletRequest request, @RequestParam(defaultValue = "10") int count) {
+    public TestProfilesResponse createTestProfiles(HttpServletRequest request, @RequestParam(defaultValue = "10") int count) {
         authenticatedUserId(request);
-        return Map.of("profiles", testProfiles.create(count));
+        return new TestProfilesResponse(testProfiles.create(count));
     }
 
     @PostMapping("/recommendations/{userId}/accept")
-    Map<String, Object> accept(HttpServletRequest r, @PathVariable String userId) {
+    public MatchService.Decision accept(HttpServletRequest r, @PathVariable String userId) {
         return matches.accept(authenticatedUserId(r), positiveId(userId));
     }
 
     @PostMapping("/recommendations/{userId}/reject")
-    ResponseEntity<Void> reject(HttpServletRequest r, @PathVariable String userId) {
+    public ResponseEntity<Void> reject(HttpServletRequest r, @PathVariable String userId) {
         matches.reject(authenticatedUserId(r), positiveId(userId));
         return ResponseEntity.noContent().build();
     }
 
     @GetMapping("/matches")
-    Map<String, Object> allMatches(HttpServletRequest r) {
+    public MatchesResponse allMatches(HttpServletRequest r) {
         chats.removeExpiredChats();
         long authenticatedUserId = authenticatedUserId(r);
-        List<Map<String, Object>> o = new ArrayList<>();
-        for (Long other : matchesFor(authenticatedUserId)) {
-            Map<String, Object> p = users.profile(other);
-            p.remove("email");
-            o.add(Map.of("user", p));
-        }
-        return Map.of("matches", o);
+        List<MatchResponse> matches = matchesFor(authenticatedUserId).stream()
+            .map(users::publicProfile)
+            .map(MatchResponse::new)
+            .toList();
+        return new MatchesResponse(matches);
     }
 
     private List<Long> matchesFor(long me) {
@@ -184,22 +179,22 @@ public class StudyController {
     }
 
     @GetMapping("/chats")
-    Map<String, Object> chatList(HttpServletRequest r) {
-        return Map.of("chats", chats.chats(authenticatedUserId(r)).stream().map(com.example.demo.domain.Chats.Summary::serialize).toList());
+    public ChatListResponse chatList(HttpServletRequest r) {
+        return new ChatListResponse(chats.chats(authenticatedUserId(r)));
     }
 
     @GetMapping("/chats/{chatId}")
-    Map<String, Object> chat(HttpServletRequest r, @PathVariable String chatId, @RequestParam(required = false) String cursor) {
+    public com.example.demo.domain.Chats.Detail chat(HttpServletRequest r, @PathVariable String chatId, @RequestParam(required = false) String cursor) {
         return chats.chat(authenticatedUserId(r), chatId(chatId), cursor);
     }
 
     @PostMapping("/chats/{chatId}/messages")
-    public ResponseEntity<?> message(HttpServletRequest r, @PathVariable String chatId, @RequestBody MessageRequest request) {
+    public ResponseEntity<com.example.demo.domain.Chats.PostedMessage> message(HttpServletRequest r, @PathVariable String chatId, @RequestBody MessageRequest request) {
         return ResponseEntity.status(201).body(chats.message(authenticatedUserId(r), chatId(chatId), request.message()));
     }
 
     @DeleteMapping("/chats/{chatId}")
-    ResponseEntity<Void> unmatch(HttpServletRequest r, @PathVariable String chatId) {
+    public ResponseEntity<Void> unmatch(HttpServletRequest r, @PathVariable String chatId) {
         chats.unmatch(authenticatedUserId(r), chatId(chatId));
         return ResponseEntity.noContent().build();
     }
@@ -211,8 +206,8 @@ public class StudyController {
     }
 
     @GetMapping("/looking-now")
-    public Map<String, Object> getLooking(HttpServletRequest r) {
-        return Map.of("users", looking.get(authenticatedUserId(r)));
+    public LookingNowResponse getLooking(HttpServletRequest r) {
+        return new LookingNowResponse(looking.get(authenticatedUserId(r)));
     }
 
     @DeleteMapping("/looking-now")
@@ -224,30 +219,27 @@ public class StudyController {
     public record RegistrationRequest(String username, String password, String email, String bio, String comments, String pictureUrl, String avatar,
                                       String major, Integer gradYear, List<String> classes, List<String> studying,
                                       List<Integer> studyTimes, List<String> preferredStudyLocations) {
-        public Map<String, Object> toServiceRequest() {
-            Map<String, Object> values = new HashMap<>();
-            values.put("username", username);
-            values.put("password", password);
-            values.put("email", email);
-            values.put("bio", bio);
-            values.put("comments", comments);
-            values.put("pictureUrl", pictureUrl);
-            values.put("avatar", avatar);
-            values.put("major", major);
-            values.put("gradYear", gradYear);
-            values.put("classes", classes);
-            values.put("studying", studying);
-            values.put("studyTimes", studyTimes);
-            values.put("preferredStudyLocations", preferredStudyLocations);
-            return values;
+        public UserService.Registration toRegistration() {
+            return new UserService.Registration(username, password, email, bio, comments, pictureUrl, avatar,
+                major, gradYear, classes, studying, studyTimes, preferredStudyLocations);
         }
     }
 
     public record LoginRequest(String email, String password) {
     }
 
+    public record HealthResponse(String status) { }
+    public record AuthenticationResponse(String token, com.example.demo.domain.Users.Profile user) { }
+    public record TestProfilesResponse(List<com.example.demo.domain.Users.PublicProfile> profiles) { }
+    public record LookingNowResponse(List<LookingNowService.VisiblePresence> users) { }
+
     public record MessageRequest(String message) {
     }
+
+    public record ChatListResponse(List<com.example.demo.domain.Chats.Summary> chats) { }
+
+    public record MatchResponse(com.example.demo.domain.Users.PublicProfile user) { }
+    public record MatchesResponse(List<MatchResponse> matches) { }
 
     public record LookingNowRequest(List<String> subjects) {
     }

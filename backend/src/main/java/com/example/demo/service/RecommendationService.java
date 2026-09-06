@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -31,47 +30,70 @@ public class RecommendationService {
         this.readCache = readCache;
     }
 
-    public static double score(Map<String, Object> firstProfile, Map<String, Object> secondProfile) {
-        return score(
-            valueSet(firstProfile, "studying"),
-            valueSet(secondProfile, "studying"),
-            valueSet(firstProfile, "studyTimes"),
-            valueSet(secondProfile, "studyTimes"),
-            firstProfile.get("gradYear"),
-            secondProfile.get("gradYear"));
+    public record CompatibilityProfile(Set<String> studying, Set<Integer> studyTimes, Integer gradYear) {
+        public CompatibilityProfile {
+            studying = Set.copyOf(studying);
+            studyTimes = Set.copyOf(studyTimes);
+        }
+    }
+
+    public record Candidate(
+        long id,
+        String username,
+        String bio,
+        String comments,
+        String pictureUrl,
+        String avatar,
+        String major,
+        Integer gradYear,
+        List<String> classes,
+        List<String> studying,
+        List<Integer> studyTimes,
+        List<String> preferredStudyLocations,
+        double compatibility) {
+        private static Candidate from(Users user, double compatibility) {
+            Users.Profile profile = user.profile(false);
+            return new Candidate(profile.id(), profile.username(), profile.bio(), profile.comments(), profile.pictureUrl(),
+                profile.avatar(), profile.major(), profile.gradYear(), profile.classes(), profile.studying(),
+                profile.studyTimes(), profile.preferredStudyLocations(), compatibility);
+        }
+    }
+
+    public record Response(List<Candidate> recommendations) {
+        public Response {
+            recommendations = List.copyOf(recommendations);
+        }
+    }
+
+    public static double score(CompatibilityProfile firstProfile, CompatibilityProfile secondProfile) {
+        return score(firstProfile.studying(), secondProfile.studying(), firstProfile.studyTimes(),
+            secondProfile.studyTimes(), firstProfile.gradYear(), secondProfile.gradYear());
     }
 
     public static double score(Users firstUser, Users secondUser) {
-        return score(
+        return score(new CompatibilityProfile(
             new HashSet<>(firstUser.studying()),
-            new HashSet<>(secondUser.studying()),
             new HashSet<>(firstUser.studyTimes()),
-            new HashSet<>(secondUser.studyTimes()),
-            firstUser.gradYear(),
-            secondUser.gradYear());
+            firstUser.gradYear()),
+            new CompatibilityProfile(
+                new HashSet<>(secondUser.studying()),
+                new HashSet<>(secondUser.studyTimes()),
+                secondUser.gradYear()));
     }
 
     private static double score(
-        Set<Object> firstStudying,
-        Set<Object> secondStudying,
-        Set<Object> firstStudyTimes,
-        Set<Object> secondStudyTimes,
-        Object firstGraduationYear,
-        Object secondGraduationYear) {
+        Set<String> firstStudying,
+        Set<String> secondStudying,
+        Set<Integer> firstStudyTimes,
+        Set<Integer> secondStudyTimes,
+        Integer firstGraduationYear,
+        Integer secondGraduationYear) {
         return 0.70 * jaccardOverlap(firstStudying, secondStudying)
             + 0.15 * timeOverlap(firstStudyTimes, secondStudyTimes)
             + 0.15 * yearSimilarity(firstGraduationYear, secondGraduationYear);
     }
 
-    private static Set<Object> valueSet(Map<String, Object> profile, String fieldName) {
-        Object rawValue = profile.get(fieldName);
-        if (!(rawValue instanceof List<?> values)) {
-            return Set.of();
-        }
-        return new HashSet<>(values);
-    }
-
-    private static double jaccardOverlap(Set<Object> firstValues, Set<Object> secondValues) {
+    private static double jaccardOverlap(Set<String> firstValues, Set<String> secondValues) {
         if (firstValues.isEmpty() && secondValues.isEmpty()) {
             return 0;
         }
@@ -82,7 +104,7 @@ public class RecommendationService {
         return (double) intersection.size() / union.size();
     }
 
-    private static double timeOverlap(Set<Object> firstValues, Set<Object> secondValues) {
+    private static double timeOverlap(Set<Integer> firstValues, Set<Integer> secondValues) {
         if (firstValues.isEmpty() || secondValues.isEmpty()) {
             return 0;
         }
@@ -91,37 +113,33 @@ public class RecommendationService {
         return (double) intersection.size() / Math.min(firstValues.size(), secondValues.size());
     }
 
-    private static double yearSimilarity(Object firstYear, Object secondYear) {
-        if (!(firstYear instanceof Number firstNumber) || !(secondYear instanceof Number secondNumber)) {
+    private static double yearSimilarity(Integer firstYear, Integer secondYear) {
+        if (firstYear == null || secondYear == null) {
             return 0;
         }
-        int yearDifference = Math.abs(firstNumber.intValue() - secondNumber.intValue());
+        int yearDifference = Math.abs(firstYear - secondYear);
         return yearDifference == 0 ? 1 : Math.max(0, 1 - yearDifference / 4.0);
     }
 
-    public List<Map<String, Object>> recommendations(long userId, int limit) {
+    public List<Candidate> recommendations(long userId, int limit) {
         chats.removeExpiredChats();
         queuePresence.removeExpiredPresences();
-        ReadCache.Key<List<Map<String, Object>>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + userId + ":" + limit);
+        ReadCache.Key<List<Candidate>> cacheKey = ReadCache.Key.of(RECOMMENDATION_CACHE_PREFIX + userId + ":" + limit);
         return readCache.getOrLoad(cacheKey, RECOMMENDATION_CACHE_TTL, () -> loadRecommendations(userId, limit));
     }
 
-    private List<Map<String, Object>> loadRecommendations(long userId, int limit) {
+    private List<Candidate> loadRecommendations(long userId, int limit) {
         Users currentUser = userService.find(userId);
         Set<Long> usersWhoAcceptedMe = usersWhoAccepted(userId);
-        List<Map<String, Object>> recommendations = new ArrayList<>();
+        List<Candidate> recommendations = new ArrayList<>();
         for (Long candidateId : eligibleCandidateIds(userId)) {
             Users candidate = userService.find(candidateId);
-            Map<String, Object> serializedCandidate = candidate.serialize(false);
-            serializedCandidate.remove("createdAt");
-            serializedCandidate.remove("updatedAt");
-            serializedCandidate.put("compatibility", score(currentUser, candidate));
-            recommendations.add(serializedCandidate);
+            recommendations.add(Candidate.from(candidate, score(currentUser, candidate)));
         }
         recommendations.sort(Comparator
-            .<Map<String, Object>, Boolean>comparing(recommendation -> !usersWhoAcceptedMe.contains((Long) recommendation.get("id")))
-            .thenComparing((Map<String, Object> recommendation) -> -(Double) recommendation.get("compatibility"))
-            .thenComparing(recommendation -> (Long) recommendation.get("id")));
+            .comparing((Candidate recommendation) -> !usersWhoAcceptedMe.contains(recommendation.id()))
+            .thenComparing(Comparator.comparingDouble(Candidate::compatibility).reversed())
+            .thenComparingLong(Candidate::id));
         return List.copyOf(recommendations.subList(0, Math.min(limit, recommendations.size())));
     }
 

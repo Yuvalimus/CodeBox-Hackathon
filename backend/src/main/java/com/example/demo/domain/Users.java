@@ -17,7 +17,7 @@ public final class Users {
     private final List<Integer> studyTimes;
 
     public Users(ResultSet resultSet, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) throws SQLException {
-        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), numberOrNull(resultSet.getObject("grad_year")), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, studyTimes, locations);
+        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), nullableInteger(resultSet, "grad_year"), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, studyTimes, locations);
     }
 
     public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String avatar, String major, Integer gradYear, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) {
@@ -38,8 +38,9 @@ public final class Users {
         this.preferredStudyLocations = List.copyOf(locations);
     }
 
-    private static Integer numberOrNull(Object value) {
-        return value instanceof Number number ? number.intValue() : null;
+    private static Integer nullableInteger(ResultSet resultSet, String columnName) throws SQLException {
+        int value = resultSet.getInt(columnName);
+        return resultSet.wasNull() ? null : value;
     }
 
     public long id() {
@@ -77,8 +78,34 @@ public final class Users {
             updatedAt);
     }
 
+    public PublicProfile publicProfile() {
+        return new PublicProfile(id, username, bio, comments, pictureUrl, avatar, major, gradYear,
+            classes, studying, studyTimes, preferredStudyLocations, createdAt, updatedAt);
+    }
+
+    /**
+     * Transitional adapter for endpoints that still need to omit null email fields.
+     * New API responses should prefer their dedicated typed response records.
+     */
     public Map<String, Object> serialize(boolean includeEmail) {
-        return profile(includeEmail).toMap();
+        Profile profile = profile(includeEmail);
+        Map<String, Object> values = new LinkedHashMap<>();
+        values.put("id", profile.id());
+        values.put("username", profile.username());
+        if (profile.email() != null) values.put("email", profile.email());
+        values.put("bio", profile.bio());
+        values.put("comments", profile.comments());
+        values.put("pictureUrl", profile.pictureUrl());
+        values.put("avatar", profile.avatar());
+        values.put("major", profile.major());
+        values.put("gradYear", profile.gradYear());
+        values.put("classes", profile.classes());
+        values.put("studying", profile.studying());
+        values.put("studyTimes", profile.studyTimes());
+        values.put("preferredStudyLocations", profile.preferredStudyLocations());
+        values.put("createdAt", profile.createdAt());
+        values.put("updatedAt", profile.updatedAt());
+        return values;
     }
 
     public record Profile(
@@ -96,27 +123,22 @@ public final class Users {
         List<Integer> studyTimes,
         List<String> preferredStudyLocations,
         String createdAt,
-        String updatedAt) {
-        public Map<String, Object> toMap() {
-            Map<String, Object> out = new LinkedHashMap<>();
-            out.put("id", id);
-            out.put("username", username);
-            if (email != null) {
-                out.put("email", email);
-            }
-            out.put("bio", bio);
-            out.put("comments", comments);
-            out.put("pictureUrl", pictureUrl);
-            out.put("avatar", avatar);
-            out.put("major", major);
-            out.put("gradYear", gradYear);
-            out.put("classes", classes);
-            out.put("studying", studying);
-            out.put("studyTimes", studyTimes);
-            out.put("preferredStudyLocations", preferredStudyLocations);
-            out.put("createdAt", createdAt);
-            out.put("updatedAt", updatedAt);
-            return out;
-        }
-    }
+        String updatedAt) { }
+
+    /** A profile suitable for another user: it deliberately excludes the email address. */
+    public record PublicProfile(
+        long id,
+        String username,
+        String bio,
+        String comments,
+        String pictureUrl,
+        String avatar,
+        String major,
+        Integer gradYear,
+        List<String> classes,
+        List<String> studying,
+        List<Integer> studyTimes,
+        List<String> preferredStudyLocations,
+        String createdAt,
+        String updatedAt) { }
 }

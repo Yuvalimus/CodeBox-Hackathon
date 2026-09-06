@@ -6,10 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
 
 /** Generates local development candidates when explicitly enabled by configuration. */
@@ -32,7 +29,7 @@ public class TestProfileService {
         this.enabled = enabled;
     }
 
-    public List<Map<String, Object>> create(int count) {
+    public List<com.example.demo.domain.Users.PublicProfile> create(int count) {
         if (!enabled) {
             throw new ApiException(HttpStatus.NOT_FOUND, "not_found", "Resource not found");
         }
@@ -40,37 +37,27 @@ public class TestProfileService {
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_count", "count must be 1 through 50");
         }
 
-        List<Map<String, Object>> profiles = new ArrayList<>();
+        List<com.example.demo.domain.Users.PublicProfile> profiles = new java.util.ArrayList<>();
         for (int index = 0; index < count; index++) {
             long userId = users.register(randomProfile());
             queuePresence.joinPermanently(userId);
-            Map<String, Object> profile = users.profile(userId);
-            profile.remove("email");
-            profiles.add(profile);
+            profiles.add(users.publicProfile(userId));
         }
         return List.copyOf(profiles);
     }
 
-    private Map<String, Object> randomProfile() {
+    private UserService.Registration randomProfile() {
         String firstName = pick(FIRST_NAMES);
         String lastName = pick(LAST_NAMES);
         String primaryClass = pick(CLASSES);
         String secondaryClass = pick(CLASSES);
         List<String> classes = primaryClass.equals(secondaryClass) ? List.of(primaryClass) : List.of(primaryClass, secondaryClass);
         String uniqueSuffix = UUID.randomUUID().toString().replace("-", "");
-        Map<String, Object> profile = new HashMap<>();
-        profile.put("username", firstName + " " + lastName);
-        profile.put("email", "test-" + uniqueSuffix + "@calpoly.edu");
-        profile.put("password", UUID.randomUUID() + "test-password");
-        profile.put("bio", "Generated test profile for local development.");
-        profile.put("comments", "Looking for a focused one-hour study session.");
-        profile.put("major", pick(MAJORS));
-        profile.put("gradYear", 2026 + random.nextInt(5));
-        profile.put("classes", classes);
-        profile.put("studying", List.of(primaryClass));
-        profile.put("studyTimes", List.of(random.nextInt(168), random.nextInt(168)));
-        profile.put("preferredStudyLocations", List.of(pick(LOCATIONS)));
-        return profile;
+        return new UserService.Registration(firstName + " " + lastName, UUID.randomUUID() + "test-password",
+            "test-" + uniqueSuffix + "@calpoly.edu", "Generated test profile for local development.",
+            "Looking for a focused one-hour study session.", null, "sage", pick(MAJORS),
+            2026 + random.nextInt(5), classes, List.of(primaryClass),
+            List.of(random.nextInt(168), random.nextInt(168)), List.of(pick(LOCATIONS)));
     }
 
     private String pick(String[] values) {

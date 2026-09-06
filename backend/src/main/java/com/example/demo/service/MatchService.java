@@ -8,7 +8,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.Duration;
-import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -24,6 +23,10 @@ public class MatchService {
     private final ChatService chats;
     private final ReadCache readCache;
 
+    public record MatchReference(long id) { }
+    public record ChatReference(String id) { }
+    public record Decision(String decision, boolean matched, MatchReference match, ChatReference chat) { }
+
     public MatchService(JdbcTemplate jdbcTemplate, UserService userService, ChatService chatService, ReadCache readCache) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
@@ -32,7 +35,7 @@ public class MatchService {
     }
 
     @Transactional
-    public Map<String, Object> accept(long currentUserId, long targetUserId) {
+    public Decision accept(long currentUserId, long targetUserId) {
         validateTarget(currentUserId, targetUserId);
         String createdAt = Instant.now().toString();
         jdbcTemplate.update(
@@ -43,7 +46,7 @@ public class MatchService {
 
         if (!hasReciprocalAcceptance(currentUserId, targetUserId)) {
             invalidateRelationshipReads();
-            return Map.of("decision", "accepted", "matched", false);
+            return new Decision("accepted", false, null, null);
         }
 
         long firstUserId = Math.min(currentUserId, targetUserId);
@@ -58,7 +61,7 @@ public class MatchService {
 
         String chatId = findOrCreateDirectChat(currentUserId, targetUserId, createdAt);
         invalidateRelationshipReads();
-        return Map.of("decision", "accepted", "matched", true, "match", Map.of("id", matchId), "chat", Map.of("id", chatId));
+        return new Decision("accepted", true, new MatchReference(matchId), new ChatReference(chatId));
     }
 
     public void reject(long currentUserId, long targetUserId) {

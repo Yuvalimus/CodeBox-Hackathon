@@ -68,7 +68,7 @@ public class ProfilePictureService {
     private enum ImageType {
         JPEG("jpg"), PNG("png"), WEBP("webp");
         private final String extension;
-        ImageType(String extension) { this.extension = extension; }
-        String extension() { return extension; }
+        private ImageType(String extension) { this.extension = extension; }
+        private String extension() { return extension; }
     }
 }

@@ -11,9 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class ChatService {
@@ -57,13 +55,13 @@ public class ChatService {
         return readCache.getOrLoad(cacheKey, CHAT_LIST_CACHE_TTL, () -> loadChatSummaries(userId));
     }
 
-    public Map<String, Object> chat(long userId, String chatId, String cursor) {
+    public Chats.Detail chat(long userId, String chatId, String cursor) {
         member(userId, chatId);
-        ReadCache.Key<Map<String, Object>> cacheKey = ReadCache.Key.of(chatCacheKey(userId, chatId, cursor));
+        ReadCache.Key<Chats.Detail> cacheKey = ReadCache.Key.of(chatCacheKey(userId, chatId, cursor));
         return readCache.getOrLoad(cacheKey, CHAT_DETAIL_CACHE_TTL, () -> loadChat(userId, chatId, cursor));
     }
 
-    public Map<String, Object> message(long userId, String chatId, String body) {
+    public Chats.PostedMessage message(long userId, String chatId, String body) {
         member(userId, chatId);
         String normalizedBody = validateMessageBody(body);
         String createdAt = Instant.now().toString();
@@ -84,14 +82,11 @@ public class ChatService {
             throw new IllegalStateException("Created message did not return an ID");
         }
         invalidateChatReads();
-        Map<String, Object> response = new LinkedHashMap<>(
-            new Chats.Message(generatedMessageId.longValue(), userId, normalizedBody, createdAt).serialize());
-        response.put("chatId", chatId);
         Chats.Message eventMessage = new Chats.Message(generatedMessageId.longValue(), userId, normalizedBody, createdAt);
         for (Long memberId : jdbcTemplate.queryForList("SELECT user_id FROM chat_members WHERE chat_id=?", Long.class, chatId)) {
             events.publish(memberId, chatId, eventMessage);
         }
-        return response;
+        return new Chats.PostedMessage(eventMessage.id(), chatId, eventMessage.senderUserId(), eventMessage.body(), eventMessage.createdAt());
     }
 
     /** Ends a direct chat, requeues both users, and starts a short rematch cooldown. */
@@ -140,7 +135,7 @@ public class ChatService {
             }, userId, userId, userId);
     }
 
-    private Map<String, Object> loadChat(long userId, String chatId, String cursor) {
+    private Chats.Detail loadChat(long userId, String chatId, String cursor) {
         ChatPageQuery pageQuery = ChatPageQuery.from(chatId, cursor);
         List<Chats.Message> messages = jdbcTemplate.query(pageQuery.sql(), resultSet -> {
             List<Chats.Message> result = new ArrayList<>();
@@ -161,9 +156,7 @@ public class ChatService {
         if (buddyId == null) {
             throw new ApiException(HttpStatus.NOT_FOUND, "chat_not_found", "Chat not found");
         }
-        Map<String, Object> detail = new LinkedHashMap<>(Chats.serializeDetail(chatId, pageMessages, nextCursor));
-        detail.put("buddy", users.find(buddyId).serialize(false));
-        return detail;
+        return new Chats.Detail(chatId, pageMessages, nextCursor, users.find(buddyId).publicProfile());
     }
 
     private String validateMessageBody(String body) {

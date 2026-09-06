@@ -7,9 +7,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.time.Duration;
 import java.time.Instant;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 @Service
 public class LookingNowService {
@@ -49,8 +47,8 @@ public class LookingNowService {
         invalidatePresenceReads();
     }
 
-    public List<Map<String, Object>> get(long userId) {
-        ReadCache.Key<List<Map<String, Object>>> cacheKey = ReadCache.Key.of(PRESENCE_CACHE_PREFIX + userId);
+    public List<VisiblePresence> get(long userId) {
+        ReadCache.Key<List<VisiblePresence>> cacheKey = ReadCache.Key.of(PRESENCE_CACHE_PREFIX + userId);
         return readCache.getOrLoad(cacheKey, PRESENCE_CACHE_TTL, () -> loadVisiblePresences(userId));
     }
 
@@ -59,22 +57,20 @@ public class LookingNowService {
         invalidatePresenceReads();
     }
 
-    private List<Map<String, Object>> loadVisiblePresences(long userId) {
+    private List<VisiblePresence> loadVisiblePresences(long userId) {
         jdbcTemplate.update("DELETE FROM looking_now WHERE expires_at<=?", Instant.now().toString());
         return jdbcTemplate.query(
             "SELECT user_id,subjects_json,expires_at FROM looking_now WHERE user_id<>? ORDER BY expires_at",
             resultSet -> {
-                List<Map<String, Object>> visiblePresences = new ArrayList<>();
+                List<VisiblePresence> visiblePresences = new java.util.ArrayList<>();
                 while (resultSet.next()) {
                     LookingNow presence = LookingNow.deserialize(
                         resultSet.getLong(1),
                         resultSet.getString(2),
                         resultSet.getString(3),
                         objectMapper);
-                    Map<String, Object> profile = userService.find(presence.userId()).serialize(false);
-                    profile.put("subjects", presence.subjects());
-                    profile.put("expiresAt", presence.expiresAt());
-                    visiblePresences.add(profile);
+                    visiblePresences.add(VisiblePresence.from(userService.find(presence.userId()).publicProfile(),
+                        presence.subjects(), presence.expiresAt()));
                 }
                 return List.copyOf(visiblePresences);
             }, userId);
@@ -82,5 +78,32 @@ public class LookingNowService {
 
     private void invalidatePresenceReads() {
         readCache.invalidatePrefix(PRESENCE_CACHE_PREFIX);
+    }
+
+    /** Flat shape retained for the existing looking-now API contract. */
+    public record VisiblePresence(
+        long id,
+        String username,
+        String bio,
+        String comments,
+        String pictureUrl,
+        String avatar,
+        String major,
+        Integer gradYear,
+        List<String> classes,
+        List<String> studying,
+        List<Integer> studyTimes,
+        List<String> preferredStudyLocations,
+        String createdAt,
+        String updatedAt,
+        List<String> subjects,
+        String expiresAt) {
+        private static VisiblePresence from(com.example.demo.domain.Users.PublicProfile profile,
+                                    List<String> subjects, String expiresAt) {
+            return new VisiblePresence(profile.id(), profile.username(), profile.bio(), profile.comments(),
+                profile.pictureUrl(), profile.avatar(), profile.major(), profile.gradYear(), profile.classes(),
+                profile.studying(), profile.studyTimes(), profile.preferredStudyLocations(), profile.createdAt(),
+                profile.updatedAt(), subjects, expiresAt);
+        }
     }
 }

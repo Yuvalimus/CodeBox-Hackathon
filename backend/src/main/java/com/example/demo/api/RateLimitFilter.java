@@ -10,7 +10,7 @@ import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
 import java.time.Instant;
-import java.util.Map;
+import com.example.demo.api.ApiErrorResponse;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -39,7 +39,7 @@ public class RateLimitFilter extends OncePerRequestFilter {
         if (w.count() > max) {
             s.setStatus(429);
             s.setContentType("application/json");
-            json.writeValue(s.getOutputStream(), Map.of("error", Map.of("code", "rate_limited", "message", "Too many requests")));
+            json.writeValue(s.getOutputStream(), ApiErrorResponse.of("rate_limited", "Too many requests"));
             return;
         }
         c.doFilter(r, s);

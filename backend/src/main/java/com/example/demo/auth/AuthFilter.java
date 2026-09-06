@@ -1,6 +1,7 @@
 package com.example.demo.auth;
 
 import com.example.demo.api.ApiException;
+import com.example.demo.api.ApiErrorResponse;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,8 +12,6 @@ import org.springframework.web.filter.OncePerRequestFilter;
 import tools.jackson.databind.ObjectMapper;
 
 import java.io.IOException;
-import java.util.Map;
-
 @Component
 public class AuthFilter extends OncePerRequestFilter {
     private final JwtService jwt;
@@ -43,7 +42,7 @@ public class AuthFilter extends OncePerRequestFilter {
         } catch (ApiException exception) {
             response.setStatus(exception.status.value());
             response.setContentType("application/json");
-            json.writeValue(response.getOutputStream(), Map.of("error", Map.of("code", exception.code, "message", exception.getMessage())));
+            json.writeValue(response.getOutputStream(), ApiErrorResponse.of(exception.code, exception.getMessage()));
         }
     }
 }

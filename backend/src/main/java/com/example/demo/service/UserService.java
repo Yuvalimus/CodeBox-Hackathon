@@ -36,8 +36,7 @@ public class UserService {
         this.readCache = readCache;
     }
 
-    public static String requiredText(Map<String, Object> requestBody, String fieldName, int minimumLength, int maximumLength) {
-        Object rawValue = requestBody.get(fieldName);
+    public static String requiredText(Object rawValue, String fieldName, int minimumLength, int maximumLength) {
         if (!(rawValue instanceof String)) throwInvalid(fieldName, fieldName + " is invalid");
         String value = ((String) rawValue).trim();
         if (value.length() < minimumLength || value.length() > maximumLength)
@@ -61,8 +60,7 @@ public class UserService {
         return List.copyOf(uniqueItems);
     }
 
-    private static String optionalText(Map<String, Object> requestBody, String fieldName, int maximumLength) {
-        Object rawValue = requestBody.get(fieldName);
+    private static String optionalText(Object rawValue, String fieldName, int maximumLength) {
         if (rawValue == null) return "";
         if (!(rawValue instanceof String)) throwInvalid(fieldName, fieldName + " is invalid");
         String value = ((String) rawValue).trim();
@@ -118,20 +116,20 @@ public class UserService {
     }
 
     @Transactional
-    public long register(Map<String, Object> requestBody) {
-        String username = username(requestBody.get("username"));
-        String email = email(requestBody.get("email"));
-        String password = requiredText(requestBody, "password", 8, 200);
+    public long register(Registration registration) {
+        String username = username(registration.username());
+        String email = email(registration.email());
+        String password = requiredText(registration.password(), "password", 8, 200);
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
-            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(requestBody, "bio", 500), optionalText(requestBody, "comments", 500), pictureUrl(requestBody.get("pictureUrl")), avatar(requestBody.get("avatar")), optionalText(requestBody, "major", 100), graduationYear(requestBody.get("gradYear")), timestamp, timestamp);
+            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500), pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100), graduationYear(registration.gradYear()), timestamp, timestamp);
         } catch (DataIntegrityViolationException exception) {
             throw emailAlreadyUsed();
         }
         Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE email=?", Long.class, email);
         if (userId == null) throw new IllegalStateException("Created user could not be loaded");
-        replaceProfileArrays(userId, requestBody);
+        replaceProfileArrays(userId, registration.classes(), registration.studying(), registration.preferredStudyLocations(), registration.studyTimes());
         invalidateUserReads(userId);
         return userId;
     }
@@ -165,9 +163,9 @@ public class UserService {
             }
         }
         if (requestBody.containsKey("bio"))
-            jdbcTemplate.update("UPDATE users SET bio=?,updated_at=? WHERE id=?", optionalText(requestBody, "bio", 500), timestamp, userId);
+            jdbcTemplate.update("UPDATE users SET bio=?,updated_at=? WHERE id=?", optionalText(requestBody.get("bio"), "bio", 500), timestamp, userId);
         if (requestBody.containsKey("comments"))
-            jdbcTemplate.update("UPDATE users SET comments=?,updated_at=? WHERE id=?", optionalText(requestBody, "comments", 500), timestamp, userId);
+            jdbcTemplate.update("UPDATE users SET comments=?,updated_at=? WHERE id=?", optionalText(requestBody.get("comments"), "comments", 500), timestamp, userId);
         if (requestBody.containsKey("pictureUrl"))
             jdbcTemplate.update("UPDATE users SET picture_url=?,updated_at=? WHERE id=?", pictureUrl(requestBody.get("pictureUrl")), timestamp, userId);
         if (requestBody.containsKey("avatar"))
@@ -175,11 +173,12 @@ public class UserService {
         if (requestBody.containsKey("gradYear"))
             jdbcTemplate.update("UPDATE users SET grad_year=?,updated_at=? WHERE id=?", graduationYear(requestBody.get("gradYear")), timestamp, userId);
         if (requestBody.containsKey("major"))
-            jdbcTemplate.update("UPDATE users SET major=?,updated_at=? WHERE id=?", optionalText(requestBody, "major", 100), timestamp, userId);
+            jdbcTemplate.update("UPDATE users SET major=?,updated_at=? WHERE id=?", optionalText(requestBody.get("major"), "major", 100), timestamp, userId);
         if (requestBody.keySet().stream().anyMatch(PROFILE_ARRAY_FIELDS::contains)) {
-            Map<String, Object> completeProfile = new HashMap<>(profile(userId));
+            Map<String, Object> completeProfile = new HashMap<>(find(userId).serialize(true));
             completeProfile.putAll(requestBody);
-            replaceProfileArrays(userId, completeProfile);
+            replaceProfileArrays(userId, completeProfile.get("classes"), completeProfile.get("studying"),
+                completeProfile.get("preferredStudyLocations"), completeProfile.get("studyTimes"));
         }
         invalidateUserReads(userId);
     }
@@ -219,11 +218,11 @@ public class UserService {
         return new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid username or password");
     }
 
-    private void replaceProfileArrays(long userId, Map<String, Object> profileData) {
-        List<String> classes = stringArray(profileData.get("classes"), "classes", 30, 80);
-        List<String> studying = stringArray(profileData.get("studying"), "studying", 30, 80);
-        List<String> locations = stringArray(profileData.get("preferredStudyLocations"), "preferredStudyLocations", 20, 100);
-        List<Integer> availableStudyTimes = studyTimes(profileData.get("studyTimes"));
+    private void replaceProfileArrays(long userId, Object classesValue, Object studyingValue, Object locationsValue, Object studyTimesValue) {
+        List<String> classes = stringArray(classesValue, "classes", 30, 80);
+        List<String> studying = stringArray(studyingValue, "studying", 30, 80);
+        List<String> locations = stringArray(locationsValue, "preferredStudyLocations", 20, 100);
+        List<Integer> availableStudyTimes = studyTimes(studyTimesValue);
         if (!classes.containsAll(studying))
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_studying", "studying must be a subset of classes");
         replaceTextArray(userId, "user_classes", "class_name", classes);
@@ -254,8 +253,12 @@ public class UserService {
         }
     }
 
-    public Map<String, Object> profile(long userId) {
-        return find(userId).serialize(true);
+    public Users.Profile profile(long userId) {
+        return find(userId).profile(true);
+    }
+
+    public Users.PublicProfile publicProfile(long userId) {
+        return find(userId).publicProfile();
     }
 
     @Transactional
@@ -288,4 +291,20 @@ public class UserService {
 
     private record Credentials(long userId, String passwordHash) {
     }
+
+    /** Fully typed registration command, validated by this service before persistence. */
+    public record Registration(
+        String username,
+        String password,
+        String email,
+        String bio,
+        String comments,
+        String pictureUrl,
+        String avatar,
+        String major,
+        Integer gradYear,
+        List<String> classes,
+        List<String> studying,
+        List<Integer> studyTimes,
+        List<String> preferredStudyLocations) { }
 }

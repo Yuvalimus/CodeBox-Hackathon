@@ -12,7 +12,6 @@ import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
 import java.util.Base64;
-import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
@@ -33,23 +32,21 @@ public class JwtService {
         try {
             long exp = Instant.now().plus(Duration.ofDays(7)).getEpochSecond();
             String h = b64("{\"alg\":\"HS256\",\"typ\":\"JWT\"}");
-            String p = b64(json.writeValueAsString(Map.of("sub", String.valueOf(id), "iss", issuer, "aud", audience, "exp", exp)));
+            String p = b64(json.writeValueAsString(new TokenPayload(String.valueOf(id), issuer, audience, exp)));
             return h + "." + p + "." + sign(h + "." + p);
         } catch (Exception e) {
             throw new IllegalStateException(e);
         }
     }
 
-    @SuppressWarnings("unchecked")
     public long verify(String token) {
         try {
             String[] x = token.split("\\.");
             if (x.length != 3 || !constant(sign(x[0] + "." + x[1]), x[2])) throw bad();
-            Map<String, Object> p = json.readValue(Base64.getUrlDecoder().decode(x[1]), Map.class);
-            long expiration = ((Number) p.get("exp")).longValue();
-            if (revokedTokens.containsKey(tokenFingerprint(token)) || !issuer.equals(p.get("iss")) || !audience.equals(p.get("aud")) || expiration < Instant.now().getEpochSecond())
+            TokenPayload payload = readPayload(x[1]);
+            if (revokedTokens.containsKey(tokenFingerprint(token)) || !issuer.equals(payload.iss()) || !audience.equals(payload.aud()) || payload.exp() < Instant.now().getEpochSecond())
                 throw bad();
-            return Long.parseLong((String) p.get("sub"));
+            return Long.parseLong(payload.sub());
         } catch (ApiException e) {
             throw e;
         } catch (Exception e) {
@@ -58,14 +55,12 @@ public class JwtService {
     }
 
     /** Revokes this specific access token until it would naturally expire. */
-    @SuppressWarnings("unchecked")
     public void revoke(String token) {
         verify(token);
         try {
             String[] parts = token.split("\\.");
-            Map<String, Object> payload = json.readValue(Base64.getUrlDecoder().decode(parts[1]), Map.class);
-            long expiration = ((Number) payload.get("exp")).longValue();
-            revokedTokens.put(tokenFingerprint(token), expiration);
+            TokenPayload payload = readPayload(parts[1]);
+            revokedTokens.put(tokenFingerprint(token), payload.exp());
             long now = Instant.now().getEpochSecond();
             revokedTokens.entrySet().removeIf(entry -> entry.getValue() < now);
         } catch (Exception exception) {
@@ -80,6 +75,10 @@ public class JwtService {
         } catch (java.security.NoSuchAlgorithmException exception) {
             throw new IllegalStateException(exception);
         }
+    }
+
+    private TokenPayload readPayload(String encodedPayload) throws Exception {
+        return json.readValue(Base64.getUrlDecoder().decode(encodedPayload), TokenPayload.class);
     }
 
     private String b64(String s) {
@@ -99,4 +98,6 @@ public class JwtService {
     private ApiException bad() {
         return new ApiException(HttpStatus.UNAUTHORIZED, "invalid_token", "Invalid or expired access token");
     }
+
+    private record TokenPayload(String sub, String iss, String aud, long exp) { }
 }

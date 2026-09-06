@@ -10,7 +10,6 @@ import org.springframework.web.socket.handler.TextWebSocketHandler;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -48,10 +47,7 @@ public class ChatEventSocketHandler extends TextWebSocketHandler {
     public void publish(long recipientUserId, String chatId, Chats.Message message) {
         String payload;
         try {
-            payload = json.writeValueAsString(Map.of(
-                "type", "chat.message",
-                "chatId", chatId,
-                "message", message.serialize()));
+            payload = json.writeValueAsString(new Chats.Event("chat.message", chatId, message));
         } catch (Exception exception) {
             throw new IllegalStateException("Could not serialize chat event", exception);
         }
