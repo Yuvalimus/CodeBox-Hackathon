@@ -106,7 +106,7 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch, onChatClo
     } catch (error) { handleChatError(error, id); } finally { setBusy(false); }
   }
   async function unmatch(item) {
-    if (!item || busy || !window.confirm(`Unmatch with ${item.username || "your study buddy"}? You can find a different study buddy afterward.`)) return;
+    if (!item || busy || !window.confirm(`Are you sure you want to unmatch with ${item.username || "your study buddy"}? Your conversation will be deleted, and you will both return to discovery. You will not be shown to each other again for five minutes.`)) return;
     const id = item.id;
     setBusy(true); setError('');
     try {
