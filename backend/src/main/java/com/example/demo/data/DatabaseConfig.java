@@ -22,6 +22,8 @@ public class DatabaseConfig {
         DriverManagerDataSource dataSource = new DriverManagerDataSource(databaseUrl);
         SQLiteConfig sqlite = new SQLiteConfig();
         sqlite.enforceForeignKeys(true);
+        sqlite.setJournalMode(SQLiteConfig.JournalMode.WAL);
+        sqlite.setBusyTimeout(5_000);
         dataSource.setConnectionProperties(sqlite.toProperties());
         try (var connection = dataSource.getConnection()) {
             connection.createStatement().execute("PRAGMA foreign_keys = ON");
