@@ -23,6 +23,7 @@ html[data-theme="dark"] input, html[data-theme="dark"] select, html[data-theme="
 html[data-theme="dark"] .auth-tabs, html[data-theme="dark"] .alarm-picker, html[data-theme="dark"] .profile-upload-panel, html[data-theme="dark"] .chat-topbar, html[data-theme="dark"] .chat-action { background:#202020; border-color:var(--border); }
 html[data-theme="dark"] .auth-tabs a[aria-current], html[data-theme="dark"] .time-wheel, html[data-theme="dark"] .chat-bubble { background:#292929; color:var(--ink); }
 html[data-theme="dark"] .time-wheel button { color:#9b9b9b; } html[data-theme="dark"] .time-wheel button.selected { background:#424242; color:var(--ink); }
+html[data-theme="dark"] .period-picker { background:#292929; box-shadow:inset 0 0 0 1px var(--border); } html[data-theme="dark"] .period-picker button { color:#9b9b9b; } html[data-theme="dark"] .period-picker button.selected { background:#424242; color:var(--ink); }
 html[data-theme="dark"] .home-session textarea, html[data-theme="dark"] .chat-composer textarea { background:#101010; border-color:var(--border); color:var(--ink); }
 html[data-theme="dark"] .chat-conversation { background:linear-gradient(160deg, #101010, #202020); } html[data-theme="dark"] .chat-bubble-row.mine .chat-bubble { background:#4f7942; }
 html[data-theme="dark"] .landing { --lp-forest:#e5e5e5; --lp-sage:#bebebe; } html[data-theme="dark"] .lp-step { background:#171717; border-color:var(--border); } html[data-theme="dark"] .lp-how { border-color:var(--border); }
