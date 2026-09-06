@@ -1,4 +1,4 @@
-﻿import PresenceHeartbeat from './components/PresenceHeartbeat.jsx';
+import PresenceHeartbeat from './components/PresenceHeartbeat.jsx';
 import { goOffline } from './presence.js';
 import { saveProfileMedia } from './profileMedia.js';
 import { request, setToken, hasToken, authenticationBody, fromUser, profileBody, chatEventsUrl } from './api.js';
@@ -32,7 +32,6 @@ const routes = {
 const notFoundRoute = { component: NotFoundPage, title: 'Page not found' };
 
 export default function App() {
-  const [theme, setTheme] = useState(() => localStorage.getItem('study-theme') || (window.matchMedia?.('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'));
   const [session, setSession] = useState(null);
   const [matchNotice, setMatchNotice] = useState(null);
   const [chatNotice, setChatNotice] = useState(null);
@@ -49,10 +48,7 @@ export default function App() {
   const route = Object.hasOwn(routes, pathname) ? routes[pathname] : notFoundRoute;
   const Page = route.component;
 
-  useEffect(() => {
-    document.documentElement.dataset.theme = theme;
-    localStorage.setItem('study-theme', theme);
-  }, [theme]);
+
 
   useEffect(() => {
     const sync = () => setPathname(window.location.pathname);
@@ -68,6 +64,7 @@ export default function App() {
     if (event.metaKey || event.ctrlKey || event.shiftKey || event.altKey || event.button !== 0) return;
     event.preventDefault();
     const path = event.currentTarget.getAttribute('href');
+    if (path === '/chat') setMatch(null);
     if (path === window.location.pathname) return;
     window.history.pushState({}, '', path);
     setPathname(window.location.pathname);
@@ -116,7 +113,7 @@ export default function App() {
   function resumeLookingAfterUnmatch() {
     const classes = profile?.studying?.length ? profile.studying : profile?.classes || [];
     setSession({ testDeck: false, classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
-    goTo('/home');
+    setMatch(null);
   }
   useEffect(() => {
     if (hasToken()) request('/me').then(user => setProfile(fromUser(user))).catch(error => { if (hasToken()) setLoadError(error.message); }).finally(() => setLoading(false));
@@ -173,7 +170,6 @@ export default function App() {
   if (loadError) return <main className="home-missing"><p role="alert">{loadError}</p><button onClick={() => window.location.reload()}>Retry</button><button onClick={() => { setToken(null); setLoadError(''); goTo('/login'); }}>Go to login</button></main>;
   const sharedProps = { onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch };
   return <>
-    <button className="theme-toggle" type="button" onClick={() => setTheme(current => current === 'dark' ? 'light' : 'dark')} aria-label={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`} title={`Switch to ${theme === 'dark' ? 'light' : 'dark'} mode`}>{theme === 'dark' ? '☀' : '☾'}</button>
     <PresenceHeartbeat active={Boolean(profile)} onError={setPresenceError} />
     {chatNotice && <aside className="match-notice" aria-label="New message"><div role="status"><strong>New chat message</strong><p>Your study buddy sent you a message.</p></div><button onClick={() => { setChatNotice(null); goTo('/chat'); }}>Open chats ↗</button><button className="match-notice-dismiss" aria-label="Dismiss" onClick={() => setChatNotice(null)}>×</button></aside>}
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}

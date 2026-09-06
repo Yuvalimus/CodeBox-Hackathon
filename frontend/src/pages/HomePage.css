@@ -55,3 +55,12 @@
 .home-preview { margin-top: 40px; }
 .home-missing { padding: 60px 25px; text-align: center; }
 @media(max-width: 650px) { .home-header { padding: 20px; } .home-header .brand { font-size: 16px; } .home-profile-link { gap: 7px; font-size: 12px; } .home-main { padding: 35px 20px; } .home-find { grid-template-columns: 1fr; padding: 27px; } .home-art { display: none; } .home-find h2 { font-size: 32px; } .home-session { padding: 23px; } .home-form-actions { flex-wrap: wrap; } }
+.study-duration { margin-block: 22px; }
+
+.duration-options { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+.duration-options label { position: relative; display: flex; align-items: center; justify-content: center; min-height: 64px; margin: 0; padding: 14px 10px; border: 2px solid var(--border); border-radius: 12px; background: white; color: var(--ink); cursor: pointer; font-size: 14px; text-align: center; }
+.duration-options label:hover { border-color: #7e956b; }
+.duration-options label.selected { background: var(--brand); border-color: var(--ink); }
+.duration-options input { position: absolute; opacity: 0; width: 1px; height: 1px; }
+.duration-options label:focus-within { outline: 3px solid #638542; outline-offset: 3px; }
+@media(max-width:600px) { .duration-options { grid-template-columns: repeat(2, minmax(0, 1fr)); } }

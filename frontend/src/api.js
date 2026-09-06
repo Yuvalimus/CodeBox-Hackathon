@@ -1,4 +1,4 @@
-﻿const base = (import.meta.env?.VITE_API_BASE_URL || 'https://study.happyxd.dev/api/').replace(/\/+$/, '');
+const base = (import.meta.env?.VITE_API_BASE_URL || 'https://study.happyxd.dev/api/').replace(/\/+$/, '');
 // Vite proxies this path during development, keeping browser API requests same-origin.
 const apiBase = (import.meta.env?.VITE_API_BASE_URL || (import.meta.env?.DEV ? '/api' : 'https://study.happyxd.dev/api/')).replace(/\/+$/, '');
 let token = sessionStorage.getItem('study-token');
@@ -55,7 +55,7 @@ export function fromUser(user, local = {}) {
   return { ...user, pictureUrl: mediaUrl(user.pictureUrl), name: user.username || local.name, year: local.year || yearForGradYear(user.gradYear), avatar: user.avatar || local.avatar || 'sage', photo: local.photo || null, classes: user.classes || [], studyTimes: user.studyTimes || [], major: user.major || '', bio: user.bio || '' };
 }
 export function profileBody(profile) {
-  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), studyTimes: profile.studyTimes || [], major: profile.major, bio: profile.bio, gradYear: gradYearFor(profile.year), avatar: profile.avatar || 'sage', ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
+  return { username: profile.name.trim(), classes: profile.classes, studying: (profile.studying || []).filter((course) => profile.classes.includes(course)), major: profile.major, bio: profile.bio, gradYear: gradYearFor(profile.year), avatar: profile.avatar || 'sage', ...(!profile.pictureUrl ? { pictureUrl: null } : {}) };
 }
 
 export function mediaUrl(value) {

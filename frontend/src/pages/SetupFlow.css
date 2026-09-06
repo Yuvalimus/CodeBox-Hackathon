@@ -38,3 +38,7 @@
 .profile-media-note { margin-top: 12px; }
 .profile-edit .submit { margin-top: 32px; border-radius: 10px; }
 @media(max-width:380px) { .profile-upload-panel { padding: 16px; gap: 12px; align-items: flex-start; } .profile-upload-preview { width: 52px; height: 52px; } }
+.profile-title-row { position: relative; display: flex; align-items: center; justify-content: center; gap: 16px; margin-bottom: 28px; }
+.setup-flow .profile-title-row h1 { margin: 8px 0; }
+.profile-title-back { position: absolute; left: 0; display: grid; place-items: center; width: 44px; height: 44px; border: 1px solid var(--border); border-radius: 50%; text-decoration: none; font-size: 24px; }
+.profile-title-back:hover { background: var(--brand); }

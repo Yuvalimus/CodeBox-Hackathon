@@ -1,4 +1,4 @@
-﻿import { goOffline } from '../presence.js';
+import { goOffline } from '../presence.js';
 import { request } from '../api.js';
 import AvatarArt from '../components/AvatarArt.jsx';
 import React, { useEffect, useRef, useState } from 'react';
@@ -10,6 +10,7 @@ import './HomePage.css';
 
 export default function HomePage({ profile, navigate, onLogout, loggingOut, logoutError, session, setSession, active = true }) {
   const [testDeck, setTestDeck] = useState(false);
+  const [durationMinutes, setDurationMinutes] = useState(null);
   const [busy, setBusy] = useState(false);
   const [choosing, setChoosing] = useState(false);
   const [selected, setSelected] = useState([]);
@@ -35,13 +36,15 @@ export default function HomePage({ profile, navigate, onLogout, loggingOut, logo
     if (busy) return;
     if (selected.length > 20) { setError('Choose up to 20 classes.'); return; }
     if (!selected.length) { setError('Choose at least one class to study.'); return; }
+    if (!durationMinutes) { setError('Choose how long you want to study.'); document.querySelector('input[name=study-duration]')?.focus(); return; }
     setBusy(true); setError('');
     try {
       if (!testDeck) {
       await request('/me', 'PATCH', { studying: selected, preferredStudyLocations: [location.trim() || 'Kennedy Library'], comments: additionalInfo.trim() });
+      // TODO: send durationMinutes once the queue API supports session duration.
       await request('/queue', 'POST');
       }
-      setSession({ testDeck, classes: [...selected], location: location.trim() || 'Kennedy Library' });
+      setSession({ durationMinutes, durationIsMinimum: durationMinutes === 120, testDeck, classes: [...selected], location: location.trim() || 'Kennedy Library' });
     } catch (error) { setError(error.message); return; } finally { setBusy(false); }
     setChoosing(false);
     setError('');
@@ -51,8 +54,8 @@ export default function HomePage({ profile, navigate, onLogout, loggingOut, logo
     <header className="home-header"><a className="brand" href="/home" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a><nav className="home-account-nav" aria-label="Account"><a href="/chat" onClick={navigate}>Matches & chats</a><a className="home-profile-link" href="/profile" onClick={navigate}><span className="home-avatar" style={{ background: AVATARS.find((avatar) => avatar.id === profile.avatar)?.color || AVATARS[0].color }}>{photo ? <img src={photo} alt="" /> : <AvatarArt avatar={profile.avatar} />}</span>My profile <span aria-hidden="true">↗</span></a><button className="home-secondary" disabled={loggingOut} onClick={onLogout}>{loggingOut ? 'Logging out...' : 'Log out'}</button></nav></header>{logoutError && <p className="error" role="alert">{logoutError}</p>}
     <main className={session ? "home-main" : "home-launch-stage"}>
       {!session && !choosing && <button ref={launchButton} className="home-launch-button" onClick={() => { setChoosing(true); setError(''); }}><span>Find a study buddy</span></button>}
-      {choosing && <section className="home-session home-session-reveal" aria-labelledby="session-title"><h2 id="session-title" ref={heading} tabIndex={-1}>What are we studying?</h2><form onSubmit={start}><fieldset><legend>Classes to study</legend><div className="home-checks">{profile.classes.map((course) => <label key={course}><input type="checkbox" checked={selected.includes(course)} onChange={(event) => { setSelected(event.target.checked ? [...selected, course] : selected.filter((item) => item !== course)); setError(''); }} />{course}</label>)}</div></fieldset>{!profile.classes.length && <p>Add a class in <a href="/profile" onClick={navigate}>your profile</a> first.</p>}{error && <p className="error" role="alert">{error}</p>}<label htmlFor="study-location">Study location <span>(optional)</span></label><input id="study-location" maxLength={100} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Kennedy Library" aria-describedby="location-hint" /><p id="location-hint" className="hint">Leave this blank and we’ll use Kennedy Library.</p><label htmlFor="additional-info">Additional info <span>(optional)</span></label><textarea id="additional-info" rows={3} maxLength={500} value={additionalInfo} onChange={event => setAdditionalInfo(event.target.value)} placeholder="e.g. I’m reviewing for an hour before my exam." aria-describedby="additional-info-hint" /><p id="additional-info-hint" className="hint">This is shared with people who see you in the queue.</p><label className="home-test-option"><input type="checkbox" checked={testDeck} disabled={busy} onChange={event => setTestDeck(event.target.checked)} /> Use looping test profiles</label><div className="home-form-actions"><button className="home-primary" type="submit" disabled={busy}>{busy ? 'Starting...' : 'Start looking'} <span aria-hidden="true">↗</span></button><button type="button" className="home-secondary" disabled={busy} onClick={() => { setChoosing(false); requestAnimationFrame(() => launchButton.current?.focus()); }}>Cancel</button></div></form></section>}
-      {session && <DiscoveryDeck active={active} session={session} onEnd={async () => { if (!session.testDeck) await goOffline(); setSession(null); setSelected([]); setLocation(''); setAdditionalInfo(''); }} />}
+      {choosing && <section className="home-session home-session-reveal" aria-labelledby="session-title"><h2 id="session-title" ref={heading} tabIndex={-1}>What are we studying?</h2><form onSubmit={start}><fieldset><legend>Classes to study</legend><div className="home-checks">{profile.classes.map((course) => <label key={course}><input type="checkbox" checked={selected.includes(course)} onChange={(event) => { setSelected(event.target.checked ? [...selected, course] : selected.filter((item) => item !== course)); setError(''); }} />{course}</label>)}</div></fieldset><fieldset className="study-duration"><legend>How long are you studying?</legend><div className="duration-options">{[30, 60, 90, 120].map(minutes => <label key={minutes} className={durationMinutes === minutes ? "selected" : ""}><input type="radio" name="study-duration" value={minutes} required checked={durationMinutes === minutes} onChange={() => { setDurationMinutes(minutes); setError(''); }} /><span>{minutes === 120 ? '120+' : minutes} minutes</span></label>)}</div></fieldset>{!profile.classes.length && <p>Add a class in <a href="/profile" onClick={navigate}>your profile</a> first.</p>}{error && <p className="error" role="alert">{error}</p>}<label htmlFor="study-location">Study location <span>(optional)</span></label><input id="study-location" maxLength={100} value={location} onChange={(event) => setLocation(event.target.value)} placeholder="Kennedy Library" aria-describedby="location-hint" /><p id="location-hint" className="hint">Leave this blank and we’ll use Kennedy Library.</p><label htmlFor="additional-info">Additional info <span>(optional)</span></label><textarea id="additional-info" rows={3} maxLength={500} value={additionalInfo} onChange={event => setAdditionalInfo(event.target.value)} placeholder="e.g. I’m reviewing for an hour before my exam." aria-describedby="additional-info-hint" /><p id="additional-info-hint" className="hint">This is shared with people who see you in the queue.</p><label className="home-test-option"><input type="checkbox" checked={testDeck} disabled={busy} onChange={event => setTestDeck(event.target.checked)} /> Use looping test profiles</label><div className="home-form-actions"><button className="home-primary" type="submit" disabled={busy}>{busy ? 'Starting...' : 'Start looking'} <span aria-hidden="true">↗</span></button><button type="button" className="home-secondary" disabled={busy} onClick={() => { setChoosing(false); requestAnimationFrame(() => launchButton.current?.focus()); }}>Cancel</button></div></form></section>}
+      {session && <DiscoveryDeck active={active} session={session} onEnd={async () => { if (!session.testDeck) await goOffline(); setSession(null); setSelected([]); setDurationMinutes(null); setLocation(''); setAdditionalInfo(''); }} />}
     </main>
   </div>;
 }
