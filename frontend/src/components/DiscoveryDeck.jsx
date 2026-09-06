@@ -25,7 +25,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
         try {
           const recs = await request('/recommendations?limit=50');
           if (active && !lock.current && !gesture.current && version === decisionVersion.current) {
-            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: user.classes.filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
+            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: (user.studying || []).filter(course => session.classes.includes(course)), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
         } catch(error) { if (active) setApiError(error.message); }
@@ -112,7 +112,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
       {!loading && candidate ? <>
         <article key={candidate.id} className={`candidate-card ${exitDirection ? `card-exit-${exitDirection}` : drag ? "card-dragging" : "card-enter"}`} style={{ transform: exitDirection ? undefined : `translateX(${Math.max(-130, Math.min(130, drag))}px) rotate(${drag / 35}deg)` }} onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={() => { gesture.current = null; setDrag(0); }}>
           <div className="candidate-color"><div className="candidate-portrait">{candidate.pictureUrl && failedPicture !== candidate.id ? <img src={candidate.pictureUrl} alt={candidate.name} draggable={false} onError={() => setFailedPicture(candidate.id)} /> : <AvatarArt avatar={candidate.avatar} label={candidate.name + ' avatar'} />}</div><span className="candidate-online">{session.testDeck ? 'Test profile' : 'Online'}</span></div>
-          <div className="candidate-content"><h3>{candidate.name}</h3>{(candidate.major || candidate.year) && <p className="candidate-detail">{[candidate.major, candidate.year && `${candidate.year} year`].filter(Boolean).join(' · ')}</p>}<div className="candidate-common"><span>Classes in common for this session</span><ul>{candidate.classes.map((course) => <li key={course}>{course}</li>)}</ul></div>{candidate.bio && <p className="candidate-bio">{candidate.bio}</p>}{candidate.location && <p className="candidate-location">Study spot · {candidate.location}</p>}</div>
+          <div className="candidate-content"><h3>{candidate.name}</h3>{(candidate.major || candidate.year) && <p className="candidate-detail">{[candidate.major, candidate.year && `${candidate.year} year`].filter(Boolean).join(' · ')}</p>}<div className="candidate-common"><span>Classes you both chose for this session</span><ul>{candidate.classes.map((course) => <li key={course}>{course}</li>)}</ul></div>{candidate.bio && <p className="candidate-bio">{candidate.bio}</p>}{candidate.location && <p className="candidate-location">Study spot · {candidate.location}</p>}</div>
         </article>
         <div className="discovery-actions"><button className="discovery-pass" disabled={busy} onClick={() => decide('left')}>← Pass <kbd>A / ←</kbd></button><button className="discovery-request" disabled={busy} onClick={() => decide('right')}>Request to match ↗ <kbd>D / →</kbd></button></div>
       </> : !loading && <div className="discovery-empty"><p>No profiles available right now.</p><button className="home-secondary" onClick={() => setReload(value => value + 1)}>Refresh</button></div>}

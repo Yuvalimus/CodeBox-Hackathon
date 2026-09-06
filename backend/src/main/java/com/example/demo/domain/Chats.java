@@ -29,9 +29,9 @@ public final class Chats {
         }
     }
 
-    public record Summary(String id, String username, String createdAt, String latestMessage) {
+    public record Summary(String id, long userId, String username, String createdAt, String latestMessage) {
         public Map<String, Object> serialize() {
-            return Map.of("id", id, "username", username, "createdAt", createdAt, "latestMessage", latestMessage == null ? "" : latestMessage);
+            return Map.of("id", id, "userId", userId, "username", username, "createdAt", createdAt, "latestMessage", latestMessage == null ? "" : latestMessage);
         }
     }
 

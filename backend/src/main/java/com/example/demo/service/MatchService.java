@@ -7,11 +7,13 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
+import java.time.Duration;
 import java.util.Map;
 import java.util.UUID;
 
 @Service
 public class MatchService {
+    static final Duration DECISION_TTL = Duration.ofMinutes(5);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
     private static final String MATCH_CACHE_PREFIX = "matches:";
     private static final String CHAT_CACHE_PREFIX = "chats:";
@@ -70,11 +72,11 @@ public class MatchService {
 
     private boolean hasReciprocalAcceptance(long currentUserId, long targetUserId) {
         Boolean reciprocalAcceptance = jdbcTemplate.query(
-            "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE actor_user_id=? AND target_user_id=? AND decision='accepted')",
+            "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE actor_user_id=? AND target_user_id=? AND decision='accepted' AND created_at>?)",
             resultSet -> {
                 resultSet.next();
                 return resultSet.getBoolean(1);
-            }, targetUserId, currentUserId);
+            }, targetUserId, currentUserId, Instant.now().minus(DECISION_TTL).toString());
         return Boolean.TRUE.equals(reciprocalAcceptance);
     }
 

@@ -27,6 +27,13 @@
 .profile-class-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 17px 0 0; }
 .profile-class-list li { display: flex; align-items: center; gap: 6px; padding-left: 12px; background: var(--brand); border-radius: 6px; font-size: 12px; }
 .profile-class-list button { border: 0; background: transparent; color: var(--ink); min-width: 44px; min-height: 44px; font-size: 20px; }
+.profile-study-times { margin-top: 28px; }
+.profile-time-entry { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) auto; gap: 10px; align-items: center; }
+.profile-time-entry label { margin: 0; }
+.profile-time-entry > button { min-height: 49px; border: 1px solid var(--border); background: var(--brand); color: var(--ink); border-radius: 7px; white-space: nowrap; padding: 0 16px; font-size: 12px; font-weight: 600; }
+.profile-time-list { display: flex; flex-wrap: wrap; gap: 8px; list-style: none; padding: 0; margin: 17px 0 0; }
+.profile-time-list li { display: flex; align-items: center; gap: 6px; padding-left: 12px; background: var(--brand); border-radius: 6px; font-size: 12px; }
+.profile-time-list button { border: 0; background: transparent; color: var(--ink); min-width: 44px; min-height: 44px; font-size: 20px; }
 .profile-optional { border-top: 1px solid var(--border); margin-top: 28px; padding-top: 28px; }
 .profile-photo-row { display: flex; align-items: center; gap: 16px; margin: 24px 0; }
 .profile-photo-row > div:last-child { min-width: 0; }
@@ -44,4 +51,4 @@
 .profile-missing > svg { width: 50px; height: 50px; }
 .profile-missing h1 { font-size: 38px; }
 @media (max-width: 800px) { .profile-grid { grid-template-columns: 1fr; gap: 25px; max-width: 620px; padding-top: 30px; } .profile-tip { display: none; } .profile-header > span { display: none; } .profile-intro h1 { font-size: 36px; letter-spacing: -1.5px; } .profile-intro h1 br { display: none; } }
-@media (max-width: 480px) { .profile-grid { padding: 26px 18px; } .profile-card { padding: 23px 18px; } .profile-details { grid-template-columns: 1fr; gap: 0; } .profile-section-title h2 { font-size: 20px; } .profile-photo-row { align-items: start; } }
+@media (max-width: 480px) { .profile-grid { padding: 26px 18px; } .profile-card { padding: 23px 18px; } .profile-details { grid-template-columns: 1fr; gap: 0; } .profile-section-title h2 { font-size: 20px; } .profile-photo-row { align-items: start; } .profile-time-entry { grid-template-columns: 1fr 1fr; } .profile-time-entry > button { grid-column: 1 / -1; } }

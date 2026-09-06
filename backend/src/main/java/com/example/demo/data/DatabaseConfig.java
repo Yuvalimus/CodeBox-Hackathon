@@ -41,6 +41,7 @@ public class DatabaseConfig {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V7__chat_uuid_ids.sql"));
             }
             ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V8__site_presence.sql"));
+            ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V9__match_decision_expiry.sql"));
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }

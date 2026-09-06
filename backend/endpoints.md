@@ -87,7 +87,7 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `studyTimes` is an array of unique weekly hour slots from `0` (Sunday 12:00 AM) through `167` (Saturday 11:00 PM). `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
@@ -157,6 +157,7 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
 ```
 
 Candidates who have already accepted the authenticated user are prioritized first.
+Accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again.
 
 Mutual matches are exclusive while their direct chat is active: users with an active match are excluded from all recommendation lists. When the chat expires after 24 hours, its match is deleted and both users return to recommendation pools.
 

@@ -19,7 +19,7 @@ test('documented registration uses a display name and login uses email', async (
 });
 
 test('profile writes include the selected avatar and keep studying within classes', () => {
-  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], major: '', bio: '', avatar: 'blue', pictureUrl: null });
+  assert.deepEqual(profileBody({ name: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001', 'MATH 2001'], studyTimes: [36, 37], major: '', bio: '', year: 'First', photo: {}, avatar: 'blue' }), { username: 'Name', classes: ['CSC 2001'], studying: ['CSC 2001'], studyTimes: [36, 37], major: '', bio: '', avatar: 'blue', pictureUrl: null });
   assert.equal(fromUser({ username: 'student', classes: [] }).name, 'student');
   assert.equal(fromUser({ username: 'Saved name' }, { name: 'Old local name' }).name, 'Saved name');
 });
