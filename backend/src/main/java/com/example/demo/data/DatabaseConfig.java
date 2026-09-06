@@ -45,6 +45,9 @@ public class DatabaseConfig {
             if (!studyTimesSupportQuarterHours(connection)) {
                 ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V10__quarter_hour_study_times.sql"));
             }
+            if (!usersHasColumn(connection, "study_duration_minutes")) {
+                ScriptUtils.executeSqlScript(connection, new ClassPathResource("db/migration/V11__study_duration_minutes.sql"));
+            }
         } catch (Exception e) {
             throw new IllegalStateException("Could not initialize SQLite schema", e);
         }
@@ -81,7 +84,8 @@ public class DatabaseConfig {
     private boolean studyTimesSupportQuarterHours(java.sql.Connection connection) throws java.sql.SQLException {
         try (var statement = connection.prepareStatement("SELECT sql FROM sqlite_master WHERE type='table' AND name='user_study_times'")) {
             try (var result = statement.executeQuery()) {
-                return result.next() && result.getString(1).matches("(?is).*hour_of_week.*BETWEEN\\s+0\\s+AND\\s+671.*");
+                // V11 removes the table altogether; no older time-slot migration is needed then.
+                return !result.next() || result.getString(1).matches("(?is).*hour_of_week.*BETWEEN\\s+0\\s+AND\\s+671.*");
             }
         }
     }

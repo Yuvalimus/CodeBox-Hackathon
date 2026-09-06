@@ -15,8 +15,6 @@ import java.util.Set;
 public class RecommendationService {
     private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofSeconds(5);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
-    private static final int WEEKLY_QUARTER_HOURS = 7 * 24 * 4;
-    private static final int MAX_TIME_DISTANCE = 4 * 4;
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
@@ -32,10 +30,9 @@ public class RecommendationService {
         this.readCache = readCache;
     }
 
-    public record CompatibilityProfile(Set<String> studying, Set<Integer> studyTimes, Integer gradYear) {
+    public record CompatibilityProfile(Set<String> studying, Integer studyDurationMinutes, Integer gradYear) {
         public CompatibilityProfile {
             studying = Set.copyOf(studying);
-            studyTimes = Set.copyOf(studyTimes);
         }
     }
 
@@ -50,14 +47,14 @@ public class RecommendationService {
         Integer gradYear,
         List<String> classes,
         List<String> studying,
-        List<Integer> studyTimes,
+        Integer studyDurationMinutes,
         List<String> preferredStudyLocations,
         double compatibility) {
         private static Candidate from(Users user, double compatibility) {
             Users.Profile profile = user.profile(false);
             return new Candidate(profile.id(), profile.username(), profile.bio(), profile.comments(), profile.pictureUrl(),
                 profile.avatar(), profile.major(), profile.gradYear(), profile.classes(), profile.studying(),
-                profile.studyTimes(), profile.preferredStudyLocations(), compatibility);
+                profile.studyDurationMinutes(), profile.preferredStudyLocations(), compatibility);
         }
     }
 
@@ -68,30 +65,30 @@ public class RecommendationService {
     }
 
     public static double score(CompatibilityProfile firstProfile, CompatibilityProfile secondProfile) {
-        return score(firstProfile.studying(), secondProfile.studying(), firstProfile.studyTimes(),
-            secondProfile.studyTimes(), firstProfile.gradYear(), secondProfile.gradYear());
+        return score(firstProfile.studying(), secondProfile.studying(), firstProfile.studyDurationMinutes(),
+            secondProfile.studyDurationMinutes(), firstProfile.gradYear(), secondProfile.gradYear());
     }
 
     public static double score(Users firstUser, Users secondUser) {
         return score(new CompatibilityProfile(
             new HashSet<>(firstUser.studying()),
-            new HashSet<>(firstUser.studyTimes()),
+            firstUser.studyDurationMinutes(),
             firstUser.gradYear()),
             new CompatibilityProfile(
                 new HashSet<>(secondUser.studying()),
-                new HashSet<>(secondUser.studyTimes()),
+                secondUser.studyDurationMinutes(),
                 secondUser.gradYear()));
     }
 
     private static double score(
         Set<String> firstStudying,
         Set<String> secondStudying,
-        Set<Integer> firstStudyTimes,
-        Set<Integer> secondStudyTimes,
+        Integer firstStudyDurationMinutes,
+        Integer secondStudyDurationMinutes,
         Integer firstGraduationYear,
         Integer secondGraduationYear) {
         return 0.70 * jaccardOverlap(firstStudying, secondStudying)
-            + 0.15 * timeProximity(firstStudyTimes, secondStudyTimes)
+            + 0.15 * durationSimilarity(firstStudyDurationMinutes, secondStudyDurationMinutes)
             + 0.15 * yearSimilarity(firstGraduationYear, secondGraduationYear);
     }
 
@@ -106,33 +103,11 @@ public class RecommendationService {
         return (double) intersection.size() / union.size();
     }
 
-    /**
-     * Scores how close two weekly availability sets are rather than requiring
-     * exact quarter-hour matches. Each person's nearest available time is
-     * considered, then both directions are averaged to avoid favoring a broad
-     * availability list over a narrow one.
-     */
-    private static double timeProximity(Set<Integer> firstValues, Set<Integer> secondValues) {
-        if (firstValues.isEmpty() || secondValues.isEmpty()) {
+    private static double durationSimilarity(Integer firstDuration, Integer secondDuration) {
+        if (firstDuration == null || secondDuration == null) {
             return 0;
         }
-        return (nearestTimeScore(firstValues, secondValues) + nearestTimeScore(secondValues, firstValues)) / 2;
-    }
-
-    private static double nearestTimeScore(Set<Integer> sourceTimes, Set<Integer> targetTimes) {
-        return sourceTimes.stream()
-            .mapToDouble(source -> targetTimes.stream()
-                .mapToInt(target -> weeklyDistance(source, target))
-                .min()
-                .orElse(MAX_TIME_DISTANCE))
-            .map(distance -> Math.max(0, 1 - distance / MAX_TIME_DISTANCE))
-            .average()
-            .orElse(0);
-    }
-
-    private static int weeklyDistance(int firstTime, int secondTime) {
-        int directDistance = Math.abs(firstTime - secondTime);
-        return Math.min(directDistance, WEEKLY_QUARTER_HOURS - directDistance);
+        return (double) Math.min(firstDuration, secondDuration) / Math.max(firstDuration, secondDuration);
     }
 
     private static double yearSimilarity(Integer firstYear, Integer secondYear) {
