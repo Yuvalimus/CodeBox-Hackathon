@@ -1,4 +1,4 @@
-﻿# Frontend
+# Frontend
 
 Run npm install and npm run dev inside frontend. API calls default to https://study.happyxd.dev/api/. VITE_API_BASE_URL can override this address; restart Vite after configuration changes. The hosted backend must allow the frontend origin through CORS.
 
@@ -16,3 +16,5 @@ Run npm test and npm run build to verify. For live end-to-end testing, use two a
 
 See BACKEND_HANDOFF.md for remaining server contract gaps. Backend files are not modified by frontend integration work.
 
+
+Test data: enable TEST_DATA_ENABLED=true on the updated backend, then use Generate 100 test profiles in Find a buddy. This inserts a fresh batch into the backend database and permanent queue; it is not a simulated deck. Start looking uses normal ranking and request APIs. With TEST_DATA_ENABLED enabled, generated users have a 30% chance of accepting each request, creating a real match/chat. They do not send automated messages.

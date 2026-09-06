@@ -23,16 +23,18 @@ public class MatchService {
     private final UserService userService;
     private final QueuePresenceService queuePresence;
     private final ReadCache readCache;
+    private final TestMatchPolicy testMatches;
 
     public record MatchReference(long id) { }
     public record ChatReference(String id) { }
     public record Decision(String decision, boolean matched, MatchReference match, ChatReference chat) { }
 
-    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, QueuePresenceService queuePresenceService, ReadCache readCache) {
+    public MatchService(JdbcTemplate jdbcTemplate, UserService userService, QueuePresenceService queuePresenceService, ReadCache readCache, TestMatchPolicy testMatches) {
         this.jdbcTemplate = jdbcTemplate;
         this.userService = userService;
         this.queuePresence = queuePresenceService;
         this.readCache = readCache;
+        this.testMatches = testMatches;
     }
 
     @Transactional
@@ -45,7 +47,12 @@ public class MatchService {
         }
         recordDecision(currentUserId, targetUserId, "accepted", createdAt);
 
-        if (!hasReciprocalAcceptance(currentUserId, targetUserId)) {
+        boolean reciprocal = hasReciprocalAcceptance(currentUserId, targetUserId);
+        if (!reciprocal && testMatches.accepts(targetUserId)) {
+            recordDecision(targetUserId, currentUserId, "accepted", createdAt);
+            reciprocal = true;
+        }
+        if (!reciprocal) {
             invalidateRelationshipReads();
             return Optional.of(new Decision("accepted", false, null, null));
         }

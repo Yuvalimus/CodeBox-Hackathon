@@ -299,9 +299,9 @@ Stops the authenticated user's active presence and returns `204 No Content`.
 
 ## Development test data
 
-### `POST /test/profiles?count=10`
+### `POST /test/profiles?count=100`
 
-Creates randomized study profiles for local development and returns their sanitized profiles. It requires a bearer token and accepts a `count` from 1 through 50 (default: 10).
+Creates randomized study profiles for local development and returns their sanitized profiles. It requires a bearer token and accepts a `count` from 1 through 100 (default: 100).
 
 This route is disabled by default. Set `TEST_DATA_ENABLED=true` before starting the backend to enable it. Disabled environments return `404`.
 
@@ -312,3 +312,5 @@ This route is disabled by default. Set `TEST_DATA_ENABLED=true` before starting 
   ]
 }
 ```
+
+Generated test profiles have majors, varied bios, avatars, 4-6 lower-division classes (5 average per 100), and 1-3 studying classes drawn from that schedule. They are permanent queue members, but are not bots: each incoming accept has a 30% chance of a reciprocal accept when TEST_DATA_ENABLED is enabled; they do not send messages. Each invocation creates a new batch.

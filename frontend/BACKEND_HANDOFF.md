@@ -1,4 +1,4 @@
-﻿# Remaining backend integration gaps
+# Remaining backend integration gaps
 
 Reviewed against backend/endpoints.md and the current Java services. Backend files were not changed.
 
@@ -19,7 +19,7 @@ The backend still returns a compatibility number despite its agent guideline aga
 
 Media integration is implemented in frontend/src/profileMedia.js. No profile data is persisted in cookies or browser storage. Uploaded photos are stored by the backend with a database URL; avatar choices and college year remain memory-only.
 
-Backend inconsistencies: PATCH /me rejects the relative pictureUrl returned by uploads; frontend omits unchanged picture URLs. Expired chat access returns 403/not_chat_member rather than a distinct expiry response; the UI reports the chat as unavailable. Repeating an accept on an existing match returns 409/user_unavailable despite endpoint wording that mentions returning an existing chat. The test-data endpoint exists but is not called automatically; the looping frontend test deck remains isolated.
+Backend inconsistencies: PATCH /me rejects the relative pictureUrl returned by uploads; frontend omits unchanged picture URLs. Expired chat access returns 403/not_chat_member rather than a distinct expiry response; the UI reports the chat as unavailable. Repeating an accept on an existing match returns 409/user_unavailable despite endpoint wording that mentions returning an existing chat. The Find a buddy form has an explicit Generate 100 test profiles action using POST /test/profiles?count=100. All discovery and decisions use backend APIs; there is no frontend mock deck. Enable TEST_DATA_ENABLED on the backend to use generation.
 
 ## Presence lifecycle skeleton
 

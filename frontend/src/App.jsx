@@ -113,7 +113,7 @@ export default function App() {
   }
   function resumeLookingAfterUnmatch() {
     const classes = profile?.studying?.length ? profile.studying : profile?.classes || [];
-    setSession({ testDeck: false, classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
+    setSession({ classes, location: profile?.preferredStudyLocations?.[0] || 'Kennedy Library' });
     setMatch(null);
   }
   useEffect(() => {
@@ -177,7 +177,7 @@ export default function App() {
   const sharedProps = { onChatClosed: clearClosedChat, onLogout: logout, loggingOut, logoutError, setupDraft, onSetupDraft: setSetupDraft, match, navigate, goTo, onSignup: (values) => authenticate(values, true), onLogin: (values) => authenticate(values, false), profile, onProfileChange: saveProfile, onAvatarSelect: saveAvatar, onUnmatch: resumeLookingAfterUnmatch, onPresenceError: setPresenceError };
   return <>
     <MatchWatcher userId={profile?.id} onMatch={onMatch} />
-    <PresenceHeartbeat active={Boolean(profile && session && !session.testDeck && !loggingOut)} onError={setPresenceError} />
+    <PresenceHeartbeat active={Boolean(profile && session && !loggingOut)} onError={setPresenceError} />
     <div className="notification-stack">
     {chatNotice && <aside className="match-notice" aria-label="New message"><div role="status"><strong>New chat message</strong><p>Your study buddy sent you a message.</p></div><button onClick={() => { setMatch({ chatId: chatNotice.chatId }); setChatNotice(null); goTo('/chat'); }}>Open chats ↗</button><button className="match-notice-dismiss" aria-label="Dismiss" onClick={() => setChatNotice(null)}>×</button></aside>}
     {matchNotice && <aside className="match-notice" aria-label="New match"><div role="status"><strong>You have a new study buddy!</strong><p>{matchNotice.name ? `You matched with ${matchNotice.name}.` : 'You both chose to study together.'}</p></div><button onClick={() => { setMatch(matchNotice); setMatchNotice(null); goTo('/chat'); }}>Open chat ↗</button><button className="match-notice-dismiss" aria-label="Dismiss match notification" onClick={() => setMatchNotice(null)}>×</button></aside>}

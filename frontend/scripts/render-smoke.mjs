@@ -1,4 +1,4 @@
-﻿import assert from 'node:assert/strict';
+import assert from 'node:assert/strict';
 import { createServer } from 'vite';
 import React from 'react';
 import { renderToString } from 'react-dom/server';
@@ -11,7 +11,7 @@ try {
   for (const [path, props] of [
     ['/src/App.jsx', {}],
     ['/src/pages/HomePage.jsx', { profile, session: null }],
-    ['/src/pages/HomePage.jsx', { profile, session: { testDeck: true, classes: profile.classes } }],
+    ['/src/pages/HomePage.jsx', { profile, session: { classes: profile.classes } }],
     ['/src/pages/ProfileSetupPage.jsx', { profile, editing: true }],
     ['/src/pages/ChatPage.jsx', { profile }],
     ['/src/pages/LoginPage.jsx', {}],

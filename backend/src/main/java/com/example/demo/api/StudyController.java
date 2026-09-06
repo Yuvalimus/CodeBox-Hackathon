@@ -156,7 +156,7 @@ public class StudyController {
     }
 
     @PostMapping("/test/profiles")
-    public TestProfilesResponse createTestProfiles(HttpServletRequest request, @RequestParam(defaultValue = "10") int count) {
+    public TestProfilesResponse createTestProfiles(HttpServletRequest request, @RequestParam(defaultValue = "100") int count) {
         authenticatedUserId(request);
         return new TestProfilesResponse(testProfiles.create(count));
     }
