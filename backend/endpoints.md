@@ -150,6 +150,7 @@ Offline discovery is enabled for every user. The Later queue can show any user; 
       "username": "Sam Lee",
       "major": "Mathematics",
       "classes": ["CSC 357"],
+      "sharedClasses": ["CSC 357"],
       "studying": ["CSC 357"],
       "studyDurationMinutes": 60,
       "preferredStudyLocations": [],

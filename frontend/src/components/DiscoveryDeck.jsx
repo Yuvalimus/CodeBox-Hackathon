@@ -34,7 +34,7 @@ export default function DiscoveryDeck({ session, onEnd, active = true }) {
         try {
           const recs = await request(`/recommendations?limit=50&queue=${session.queueMode || 'active'}`);
           if (mounted && !lock.current && !gesture.current && version === decisionVersion.current) {
-            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: sharedClasses(session.classes, session.queueMode === 'offline' ? user.classes : user.studying || []), location: user.preferredStudyLocations?.[0] || '' })));
+            setCandidates(recs.recommendations.map(user => ({ ...fromUser(user), classes: user.sharedClasses || sharedClasses(session.classes, session.queueMode === 'offline' ? user.classes : user.studying || []), location: user.preferredStudyLocations?.[0] || '' })));
             setIndex(0); setApiError('');
           }
         } catch(error) { if (mounted) setApiError(error.message); }

@@ -52,14 +52,15 @@ public class RecommendationService {
         String major,
         Integer gradYear,
         List<String> classes,
+        List<String> sharedClasses,
         List<String> studying,
         Integer studyDurationMinutes,
         List<String> preferredStudyLocations,
         double compatibility) {
-        private static Candidate from(Users user, double compatibility) {
+        private static Candidate from(Users user, double compatibility, List<String> sharedClasses) {
             Users.Profile profile = user.profile(false);
             return new Candidate(profile.id(), profile.username(), profile.bio(), profile.comments(), profile.pictureUrl(),
-                profile.avatar(), profile.major(), profile.gradYear(), profile.classes(), profile.studying(),
+                profile.avatar(), profile.major(), profile.gradYear(), profile.classes(), sharedClasses, profile.studying(),
                 profile.studyDurationMinutes(), profile.preferredStudyLocations(), compatibility);
         }
     }
@@ -141,7 +142,7 @@ public class RecommendationService {
             if (mode == QueueMode.ACTIVE && (currentClasses.isEmpty() || java.util.Collections.disjoint(currentClasses, matchingClasses(candidate, mode)))) {
                 continue;
             }
-            recommendations.add(Candidate.from(candidate, score(currentUser, candidate, mode)));
+            recommendations.add(Candidate.from(candidate, score(currentUser, candidate, mode), sharedClasses(currentUser, candidate, mode)));
         }
         recommendations.sort(Comparator
             .comparing((Candidate recommendation) -> !usersWhoAcceptedMe.contains(recommendation.id()))
@@ -171,6 +172,20 @@ public class RecommendationService {
         return normalized;
     }
 
+    private List<String> sharedClasses(Users currentUser, Users candidate, QueueMode mode) {
+        Set<String> currentClasses = matchingClasses(currentUser, mode);
+        List<String> candidateClasses = mode == QueueMode.ACTIVE ? candidate.studying() : candidate.classes();
+        return candidateClasses.stream()
+            .filter(course -> currentClasses.contains(normalizedCourse(course)))
+            .toList();
+    }
+
+    private String normalizedCourse(String value) {
+        String course = value.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", " ");
+        Matcher matcher = COURSE_CODE.matcher(course);
+        return matcher.matches() ? matcher.group(1) + " " + matcher.group(2) : course;
+    }
+
     private Set<Long> usersWhoAccepted(long userId) {
         return new HashSet<>(jdbcTemplate.queryForList(
             "SELECT actor_user_id FROM match_decisions WHERE target_user_id=? "
@@ -183,8 +198,10 @@ public class RecommendationService {
         String queueEligibility = mode == QueueMode.ACTIVE
             ? "(EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))"
             : "1=1";
-        Object[] parameters = new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(),
-            userId, decisionCutoff, userId, userId, userId};
+        Object[] parameters = mode == QueueMode.ACTIVE
+            ? new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(),
+                userId, decisionCutoff, userId, userId, userId}
+            : new Object[]{userId, userId, decisionCutoff, userId, userId, userId};
         return jdbcTemplate.queryForList(
             "SELECT users.id FROM users WHERE users.id<>? "
                 + "AND " + queueEligibility + " "
