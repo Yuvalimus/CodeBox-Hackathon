@@ -27,12 +27,15 @@ public class ChatService {
     private final ReadCache readCache;
     private final QueuePresenceService queuePresence;
     private final UserService users;
+    private final ChatEventSocketHandler events;
 
-    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache, QueuePresenceService queuePresence, UserService userService) {
+    public ChatService(JdbcTemplate jdbcTemplate, ReadCache readCache, QueuePresenceService queuePresence, UserService userService,
+                       ChatEventSocketHandler chatEventSocketHandler) {
         this.jdbcTemplate = jdbcTemplate;
         this.readCache = readCache;
         this.queuePresence = queuePresence;
         this.users = userService;
+        this.events = chatEventSocketHandler;
     }
 
     public void member(long userId, String chatId) {
@@ -84,6 +87,10 @@ public class ChatService {
         Map<String, Object> response = new LinkedHashMap<>(
             new Chats.Message(generatedMessageId.longValue(), userId, normalizedBody, createdAt).serialize());
         response.put("chatId", chatId);
+        Chats.Message eventMessage = new Chats.Message(generatedMessageId.longValue(), userId, normalizedBody, createdAt);
+        for (Long memberId : jdbcTemplate.queryForList("SELECT user_id FROM chat_members WHERE chat_id=?", Long.class, chatId)) {
+            events.publish(memberId, chatId, eventMessage);
+        }
         return response;
     }
 

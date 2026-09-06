@@ -203,6 +203,20 @@ Returns matched users. Match profile responses never include another user's emai
 Chats are created only by mutual accepts; clients cannot create arbitrary chats.
 Chats expire 24 hours after creation. Expiration deletes the chat, its messages, and its match; both users then become eligible recommendations again.
 
+### Authenticated WebSocket chat events
+
+Connect to the public API WebSocket path `/ws/chat?token=<jwt>` (or `/api/ws/chat` when the reverse proxy exposes the API beneath `/api`). The handshake verifies the JWT and only accepts origins allowed by the API's CORS configuration. The server sends each chat member a live event after a message is saved:
+
+```json
+{
+  "type": "chat.message",
+  "chatId": "uuid",
+  "message": { "id": 31, "senderUserId": 1, "body": "Want to study?", "createdAt": "2026-09-05T20:00:00Z" }
+}
+```
+
+For a reverse proxy, forward WebSocket `Upgrade` and `Connection` headers for this route.
+
 ### `GET /chats`
 
 Returns the current user's chat summaries:
@@ -243,7 +257,7 @@ Returns `201 Created` with the saved message. Messages are trimmed and must be 1
 
 ### `DELETE /chats/{chatId}`
 
-Ends the authenticated member's direct chat, removes its match, clears the pair's previous decisions, and returns both participants to the queue. They can immediately be recommended again. Returns `204 No Content`.
+Ends the authenticated member's direct chat, removes its match, and returns both participants to the queue. The pair is hidden from one another's recommendations for five minutes before they can be recommended again. Returns `204 No Content`.
 
 ## Looking now
 

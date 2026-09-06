@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { request } from '../api.js';
+import { chatEventsUrl, request } from '../api.js';
 
 export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const [chats, setChats] = useState([]);
@@ -48,25 +48,37 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   }
   useEffect(() => { if (initialChatId) open(initialChatId); }, [initialChatId]);
   useEffect(() => {
-    if (!chat?.id) return;
-    let active = true;
-    let timer;
-    const id = chat.id;
-    async function poll() {
-      try {
-        const data = await request('/chats/' + id);
-        if (active) setChat(previous => {
-          if (previous?.id !== id) return previous;
-          const messages = new Map(previous.messages.map(message => [message.id, message]));
-          data.messages.forEach(message => messages.set(message.id, message));
-          return { ...previous, messages: [...messages.values()].sort((a,b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id) };
-        });
-      } catch (error) { if (active && (error.code === 'not_chat_member' || error.status === 404)) { handleChatError(error, id); return; } }
-      if (active) timer = setTimeout(poll, 5000);
+    let socket;
+    let reconnectTimer;
+    let stopped = false;
+    function connect() {
+      socket = new WebSocket(chatEventsUrl());
+      socket.onmessage = event => {
+        try {
+          const update = JSON.parse(event.data);
+          if (update.type !== 'chat.message' || !update.message?.id) return;
+          setChats(previous => previous.map(item => item.id === update.chatId ? { ...item, latestMessage: update.message.body } : item));
+          setChat(previous => {
+            if (previous?.id !== update.chatId) return previous;
+            const messages = new Map(previous.messages.map(message => [message.id, message]));
+            messages.set(update.message.id, update.message);
+            return { ...previous, messages: [...messages.values()].sort((a, b) => b.createdAt.localeCompare(a.createdAt) || b.id - a.id) };
+          });
+        } catch { /* Ignore malformed socket events and reconnect if the socket closes. */ }
+      };
+      socket.onclose = () => {
+        if (!stopped) reconnectTimer = setTimeout(connect, 2000);
+      };
+      socket.onerror = () => socket.close();
     }
-    timer = setTimeout(poll, 5000);
-    return () => { active = false; clearTimeout(timer); };
-  }, [chat?.id]);
+    connect();
+    return () => {
+      stopped = true;
+      clearTimeout(reconnectTimer);
+      socket?.close();
+    };
+  }, []);
+
   async function send(event) {
     event.preventDefault();
     if (busy || !body.trim()) return;
