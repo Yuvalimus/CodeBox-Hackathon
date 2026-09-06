@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.time.Duration;
+import java.util.Optional;
 import java.util.UUID;
 
 @Service
@@ -35,9 +36,17 @@ public class MatchService {
     }
 
     @Transactional
-    public Decision accept(long currentUserId, long targetUserId) {
+    public Optional<Decision> accept(long currentUserId, long targetUserId) {
         validateTarget(currentUserId, targetUserId);
         String createdAt = Instant.now().toString();
+        if (chats.hasActiveChat(currentUserId) || chats.hasActiveChat(targetUserId)) {
+            recordCooldown(currentUserId, targetUserId, createdAt);
+            invalidateRelationshipReads();
+            return Optional.empty();
+        }
+        if (hasActiveCooldown(currentUserId, targetUserId)) {
+            return Optional.empty();
+        }
         jdbcTemplate.update(
             "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) "
                 + "VALUES(?,?, 'accepted',?) ON CONFLICT(actor_user_id,target_user_id) "
@@ -46,7 +55,7 @@ public class MatchService {
 
         if (!hasReciprocalAcceptance(currentUserId, targetUserId)) {
             invalidateRelationshipReads();
-            return new Decision("accepted", false, null, null);
+            return Optional.of(new Decision("accepted", false, null, null));
         }
 
         long firstUserId = Math.min(currentUserId, targetUserId);
@@ -61,16 +70,25 @@ public class MatchService {
 
         String chatId = findOrCreateDirectChat(currentUserId, targetUserId, createdAt);
         invalidateRelationshipReads();
-        return new Decision("accepted", true, new MatchReference(matchId), new ChatReference(chatId));
+        return Optional.of(new Decision("accepted", true, new MatchReference(matchId), new ChatReference(chatId)));
     }
 
+    @Transactional
     public void reject(long currentUserId, long targetUserId) {
         validateTarget(currentUserId, targetUserId);
+        recordCooldown(currentUserId, targetUserId, Instant.now().toString());
+        invalidateRelationshipReads();
+    }
+
+    private void recordCooldown(long firstUserId, long secondUserId, String createdAt) {
         jdbcTemplate.update(
             "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
                 + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
-            currentUserId, targetUserId, Instant.now().toString());
-        invalidateRelationshipReads();
+            firstUserId, secondUserId, createdAt);
+        jdbcTemplate.update(
+            "INSERT INTO match_decisions(actor_user_id,target_user_id,decision,created_at) VALUES(?,?,'rejected',?) "
+                + "ON CONFLICT(actor_user_id,target_user_id) DO UPDATE SET decision='rejected',created_at=excluded.created_at",
+            secondUserId, firstUserId, createdAt);
     }
 
     private boolean hasReciprocalAcceptance(long currentUserId, long targetUserId) {
@@ -80,6 +98,16 @@ public class MatchService {
                 resultSet.next();
                 return resultSet.getBoolean(1);
             }, targetUserId, currentUserId, Instant.now().minus(DECISION_TTL).toString());
+    }
+
+    private boolean hasActiveCooldown(long firstUserId, long secondUserId) {
+        return jdbcTemplate.query(
+            "SELECT EXISTS(SELECT 1 FROM match_decisions WHERE decision='rejected' AND created_at>? "
+                + "AND ((actor_user_id=? AND target_user_id=?) OR (actor_user_id=? AND target_user_id=?)))",
+            resultSet -> {
+                resultSet.next();
+                return resultSet.getBoolean(1);
+            }, Instant.now().minus(DECISION_TTL).toString(), firstUserId, secondUserId, secondUserId, firstUserId);
     }
 
     private String findOrCreateDirectChat(long currentUserId, long targetUserId, String createdAt) {
@@ -105,9 +133,6 @@ public class MatchService {
         }
         if (!userService.exists(targetUserId)) {
             throw new ApiException(HttpStatus.NOT_FOUND, "user_not_found", "User not found");
-        }
-        if (chats.hasActiveChat(currentUserId) || chats.hasActiveChat(targetUserId)) {
-            throw new ApiException(HttpStatus.CONFLICT, "user_unavailable", "Users with an active match cannot be matched again");
         }
     }
 

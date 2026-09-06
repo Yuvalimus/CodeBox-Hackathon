@@ -92,7 +92,7 @@ public class LookingNowService {
         Integer gradYear,
         List<String> classes,
         List<String> studying,
-        List<Integer> studyTimes,
+        Integer studyDurationMinutes,
         List<String> preferredStudyLocations,
         String createdAt,
         String updatedAt,
@@ -102,7 +102,7 @@ public class LookingNowService {
                                     List<String> subjects, String expiresAt) {
             return new VisiblePresence(profile.id(), profile.username(), profile.bio(), profile.comments(),
                 profile.pictureUrl(), profile.avatar(), profile.major(), profile.gradYear(), profile.classes(),
-                profile.studying(), profile.studyTimes(), profile.preferredStudyLocations(), profile.createdAt(),
+                profile.studying(), profile.studyDurationMinutes(), profile.preferredStudyLocations(), profile.createdAt(),
                 profile.updatedAt(), subjects, expiresAt);
         }
     }

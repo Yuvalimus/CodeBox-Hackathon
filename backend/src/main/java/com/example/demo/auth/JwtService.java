@@ -21,11 +21,11 @@ public class JwtService {
     private final ObjectMapper json;
     private final ConcurrentMap<String, Long> revokedTokens = new ConcurrentHashMap<>();
 
-    public JwtService(@Value("${app.jwt-secret}") String s, @Value("${app.jwt-issuer}") String i, @Value("${app.jwt-audience}") String a, ObjectMapper j) {
-        secret = s;
-        issuer = i;
-        audience = a;
-        json = j;
+    public JwtService(@Value("${app.jwt-secret}") String secret, @Value("${app.jwt-issuer}") String issuer, @Value("${app.jwt-audience}") String audience, ObjectMapper json) {
+        this.secret = secret;
+        this.issuer = issuer;
+        this.audience = audience;
+        this.json = json;
     }
 
     public String issue(long id) {

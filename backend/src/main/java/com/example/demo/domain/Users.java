@@ -12,15 +12,14 @@ import java.util.Map;
 public final class Users {
     private final long id;
     private final String username, email, bio, comments, pictureUrl, avatar, major, createdAt, updatedAt;
-    private final Integer gradYear;
+    private final Integer gradYear, studyDurationMinutes;
     private final List<String> classes, studying, preferredStudyLocations;
-    private final List<Integer> studyTimes;
 
-    public Users(ResultSet resultSet, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) throws SQLException {
-        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), nullableInteger(resultSet, "grad_year"), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, studyTimes, locations);
+    public Users(ResultSet resultSet, List<String> classes, List<String> studying, List<String> locations) throws SQLException {
+        this(resultSet.getLong("id"), resultSet.getString("username"), resultSet.getString("email"), resultSet.getString("bio"), resultSet.getString("comments"), resultSet.getString("picture_url"), resultSet.getString("avatar"), resultSet.getString("major"), nullableInteger(resultSet, "grad_year"), resultSet.getInt("study_duration_minutes"), resultSet.getString("created_at"), resultSet.getString("updated_at"), classes, studying, locations);
     }
 
-    public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String avatar, String major, Integer gradYear, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<Integer> studyTimes, List<String> locations) {
+    public Users(long id, String username, String email, String bio, String comments, String pictureUrl, String avatar, String major, Integer gradYear, Integer studyDurationMinutes, String createdAt, String updatedAt, List<String> classes, List<String> studying, List<String> locations) {
         this.id = id;
         this.username = username;
         this.email = email;
@@ -30,11 +29,11 @@ public final class Users {
         this.avatar = avatar;
         this.major = major;
         this.gradYear = gradYear;
+        this.studyDurationMinutes = studyDurationMinutes;
         this.createdAt = createdAt;
         this.updatedAt = updatedAt;
         this.classes = List.copyOf(classes);
         this.studying = List.copyOf(studying);
-        this.studyTimes = List.copyOf(studyTimes);
         this.preferredStudyLocations = List.copyOf(locations);
     }
 
@@ -51,8 +50,8 @@ public final class Users {
         return studying;
     }
 
-    public List<Integer> studyTimes() {
-        return studyTimes;
+    public Integer studyDurationMinutes() {
+        return studyDurationMinutes;
     }
 
     public Integer gradYear() {
@@ -72,7 +71,7 @@ public final class Users {
             gradYear,
             classes,
             studying,
-            studyTimes,
+            studyDurationMinutes,
             preferredStudyLocations,
             createdAt,
             updatedAt);
@@ -80,7 +79,7 @@ public final class Users {
 
     public PublicProfile publicProfile() {
         return new PublicProfile(id, username, bio, comments, pictureUrl, avatar, major, gradYear,
-            classes, studying, studyTimes, preferredStudyLocations, createdAt, updatedAt);
+            classes, studying, studyDurationMinutes, preferredStudyLocations, createdAt, updatedAt);
     }
 
     /**
@@ -101,7 +100,7 @@ public final class Users {
         values.put("gradYear", profile.gradYear());
         values.put("classes", profile.classes());
         values.put("studying", profile.studying());
-        values.put("studyTimes", profile.studyTimes());
+        values.put("studyDurationMinutes", profile.studyDurationMinutes());
         values.put("preferredStudyLocations", profile.preferredStudyLocations());
         values.put("createdAt", profile.createdAt());
         values.put("updatedAt", profile.updatedAt());
@@ -120,7 +119,7 @@ public final class Users {
         Integer gradYear,
         List<String> classes,
         List<String> studying,
-        List<Integer> studyTimes,
+        Integer studyDurationMinutes,
         List<String> preferredStudyLocations,
         String createdAt,
         String updatedAt) { }
@@ -137,7 +136,7 @@ public final class Users {
         Integer gradYear,
         List<String> classes,
         List<String> studying,
-        List<Integer> studyTimes,
+        Integer studyDurationMinutes,
         List<String> preferredStudyLocations,
         String createdAt,
         String updatedAt) { }

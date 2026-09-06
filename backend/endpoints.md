@@ -38,7 +38,7 @@ Creates an account and returns an access token plus the authenticated user profi
   "gradYear": 2027,
   "classes": ["CSC 357"],
   "studying": ["CSC 357"],
-  "studyTimes": [12, 13],
+  "studyDurationMinutes": 60,
   "preferredStudyLocations": ["Kennedy Library"]
 }
 ```
@@ -87,13 +87,14 @@ Returns the authenticated user's complete profile, including their email.
 
 ### `PATCH /me`
 
-Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, and `preferredStudyLocations`. `studyTimes` is an array of unique weekly hour slots from `0` (Sunday 12:00 AM) through `167` (Saturday 11:00 PM). `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
+Updates one or more profile fields and returns the complete updated profile. The editable fields are `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `classes`, `studying`, and `preferredStudyLocations`. `studyDurationMinutes` is an integer from `15` through `480`, in 15-minute increments; it defaults to `60`. `avatar` must be one of `sage`, `blue`, `peach`, or `lavender`; omitted avatars default to `sage`. `comments` is a public, optional 500-character field for describing what the user is looking for.
 
 ```json
 {
   "username": "Alex Rivera",
   "bio": "I like afternoon review sessions.",
   "comments": "Studying for one hour before my exam.",
+  "studyDurationMinutes": 60,
   "classes": ["CSC 357", "STAT 312"],
   "studying": ["CSC 357"]
 }
@@ -148,7 +149,7 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
       "major": "Mathematics",
       "classes": ["CSC 357"],
       "studying": ["CSC 357"],
-      "studyTimes": [12, 13],
+      "studyDurationMinutes": 60,
       "preferredStudyLocations": [],
       "compatibility": 0.85
     }
@@ -157,7 +158,8 @@ Returns up to 20 candidates by default; `limit` must be from 1 through 50.
 ```
 
 Candidates who have already accepted the authenticated user are prioritized first.
-Accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again.
+Compatibility is ranked as 70% shared `studying` classes, 15% preferred study-duration similarity, and 15% graduation-year similarity. Study-duration similarity is the shorter requested duration divided by the longer requested duration, so equal durations receive full credit.
+Accept and reject decisions expire after five minutes, after which the two users can appear in one another's recommendations and decide again. A rejection records the cooldown for both users, so either person is hidden from the other's recommendations during those five minutes.
 
 Mutual matches are exclusive while their direct chat is active: users with an active match are excluded from all recommendation lists. When the chat expires after 24 hours, its match is deleted and both users return to recommendation pools.
 
@@ -168,6 +170,8 @@ Records an accept. If the other person has not accepted yet:
 ```json
 { "decision": "accepted", "matched": false }
 ```
+
+If either person already has an active match, or the pair has an unexpired rejection cooldown, the request is treated as unavailable rather than an error. It returns an empty JSON response (`{}`). An active-match request records a reciprocal five-minute cooldown, and the existing cooldown keeps the pair from immediately reappearing in one another's recommendations.
 
 For a mutual accept, returns the created (or existing) match and direct chat:
 
@@ -182,7 +186,7 @@ For a mutual accept, returns the created (or existing) match and direct chat:
 
 ### `POST /recommendations/{userId}/reject`
 
-Records a rejection and returns `204 No Content`.
+Records a reciprocal rejection and returns `204 No Content`. Both users are hidden from one another's recommendations for five minutes.
 
 ### `GET /matches`
 
@@ -205,7 +209,17 @@ Chats expire 24 hours after creation. Expiration deletes the chat, its messages,
 
 ### Authenticated WebSocket chat events
 
-Connect to the public API WebSocket path `/ws/chat?token=<jwt>` (or `/api/ws/chat` when the reverse proxy exposes the API beneath `/api`). The handshake verifies the JWT and only accepts origins allowed by the API's CORS configuration. The server sends each chat member a live event after a message is saved:
+First request a one-time WebSocket ticket, then connect to `/ws/chat?ticket=<ticket>` (or `/api/ws/chat` when the reverse proxy exposes the API beneath `/api`). Tickets are valid for one minute and are consumed by the handshake, so the normal bearer token is never placed in the WebSocket URL.
+
+### `POST /ws/chat-ticket`
+
+Requires a bearer token and returns a short-lived, single-use ticket:
+
+```json
+{ "ticket": "..." }
+```
+
+The server sends each chat member a live event after a message is saved:
 
 ```json
 {

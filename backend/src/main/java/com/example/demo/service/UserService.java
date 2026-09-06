@@ -18,12 +18,11 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 
 @Service
 public class UserService {
-    private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "studyTimes", "preferredStudyLocations");
-    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "classes", "studying", "studyTimes", "preferredStudyLocations");
+    private static final Set<String> PROFILE_ARRAY_FIELDS = Set.of("classes", "studying", "preferredStudyLocations");
+    private static final Set<String> PROFILE_FIELDS = Set.of("username", "email", "bio", "comments", "pictureUrl", "avatar", "gradYear", "major", "studyDurationMinutes", "classes", "studying", "preferredStudyLocations");
     private static final Duration PROFILE_CACHE_TTL = Duration.ofMinutes(15);
     private static final String PROFILE_CACHE_PREFIX = "profile:";
     private final JdbcTemplate jdbcTemplate;
@@ -68,20 +67,17 @@ public class UserService {
         return value;
     }
 
-    private static List<Integer> studyTimes(Object rawValue) {
-        if (rawValue == null) return List.of();
-        if (!(rawValue instanceof List<?>)) throwInvalid("studyTimes", "studyTimes must be an array");
-        List<?> rawHours = (List<?>) rawValue;
-        if (rawHours.size() > 672) throwInvalid("studyTimes", "studyTimes must be an array");
-        Set<Integer> uniqueHours = new TreeSet<>();
-        for (Object rawHour : rawHours) {
-            if (!(rawHour instanceof Number)) throwInvalid("studyTimes", "studyTimes must be 15-minute slots from 0 through 671");
-            Number hour = (Number) rawHour;
-            if (hour.intValue() < 0 || hour.intValue() > 671 || hour.doubleValue() != hour.intValue())
-                throwInvalid("studyTimes", "studyTimes must be 15-minute slots from 0 through 671");
-            uniqueHours.add(hour.intValue());
+    private static int studyDurationMinutes(Object rawValue) {
+        if (rawValue == null) return 60;
+        if (!(rawValue instanceof Number)) {
+            throwInvalid("studyDurationMinutes", "studyDurationMinutes must be 15 through 480 in 15-minute increments");
         }
-        return List.copyOf(uniqueHours);
+        Number duration = (Number) rawValue;
+        if (duration.doubleValue() != duration.intValue()
+            || duration.intValue() < 15 || duration.intValue() > 480 || duration.intValue() % 15 != 0) {
+            throwInvalid("studyDurationMinutes", "studyDurationMinutes must be 15 through 480 in 15-minute increments");
+        }
+        return duration.intValue();
     }
 
     private static Integer graduationYear(Object rawValue) {
@@ -123,13 +119,13 @@ public class UserService {
         ensureEmailAvailable(email, null);
         String timestamp = Instant.now().toString();
         try {
-            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500), pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100), graduationYear(registration.gradYear()), timestamp, timestamp);
+            jdbcTemplate.update("INSERT INTO users(username,email,password_hash,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at) VALUES(?,?,?,?,?,?,?,?,?,?,?,?)", username, email, passwordEncoder.encode(password), optionalText(registration.bio(), "bio", 500), optionalText(registration.comments(), "comments", 500), pictureUrl(registration.pictureUrl()), avatar(registration.avatar()), optionalText(registration.major(), "major", 100), graduationYear(registration.gradYear()), studyDurationMinutes(registration.studyDurationMinutes()), timestamp, timestamp);
         } catch (DataIntegrityViolationException exception) {
             throw emailAlreadyUsed();
         }
         Long userId = jdbcTemplate.queryForObject("SELECT id FROM users WHERE email=?", Long.class, email);
         if (userId == null) throw new IllegalStateException("Created user could not be loaded");
-        replaceProfileArrays(userId, registration.classes(), registration.studying(), registration.preferredStudyLocations(), registration.studyTimes());
+        replaceProfileArrays(userId, registration.classes(), registration.studying(), registration.preferredStudyLocations());
         invalidateUserReads(userId);
         return userId;
     }
@@ -174,11 +170,13 @@ public class UserService {
             jdbcTemplate.update("UPDATE users SET grad_year=?,updated_at=? WHERE id=?", graduationYear(requestBody.get("gradYear")), timestamp, userId);
         if (requestBody.containsKey("major"))
             jdbcTemplate.update("UPDATE users SET major=?,updated_at=? WHERE id=?", optionalText(requestBody.get("major"), "major", 100), timestamp, userId);
+        if (requestBody.containsKey("studyDurationMinutes"))
+            jdbcTemplate.update("UPDATE users SET study_duration_minutes=?,updated_at=? WHERE id=?", studyDurationMinutes(requestBody.get("studyDurationMinutes")), timestamp, userId);
         if (requestBody.keySet().stream().anyMatch(PROFILE_ARRAY_FIELDS::contains)) {
             Map<String, Object> completeProfile = new HashMap<>(find(userId).serialize(true));
             completeProfile.putAll(requestBody);
             replaceProfileArrays(userId, completeProfile.get("classes"), completeProfile.get("studying"),
-                completeProfile.get("preferredStudyLocations"), completeProfile.get("studyTimes"));
+                completeProfile.get("preferredStudyLocations"));
         }
         invalidateUserReads(userId);
     }
@@ -218,19 +216,15 @@ public class UserService {
         return new ApiException(HttpStatus.UNAUTHORIZED, "invalid_credentials", "Invalid username or password");
     }
 
-    private void replaceProfileArrays(long userId, Object classesValue, Object studyingValue, Object locationsValue, Object studyTimesValue) {
+    private void replaceProfileArrays(long userId, Object classesValue, Object studyingValue, Object locationsValue) {
         List<String> classes = stringArray(classesValue, "classes", 30, 80);
         List<String> studying = stringArray(studyingValue, "studying", 30, 80);
         List<String> locations = stringArray(locationsValue, "preferredStudyLocations", 20, 100);
-        List<Integer> availableStudyTimes = studyTimes(studyTimesValue);
         if (!classes.containsAll(studying))
             throw new ApiException(HttpStatus.BAD_REQUEST, "invalid_studying", "studying must be a subset of classes");
         replaceTextArray(userId, "user_classes", "class_name", classes);
         replaceTextArray(userId, "user_studying", "class_name", studying);
         replaceTextArray(userId, "user_preferred_locations", "location", locations);
-        jdbcTemplate.update("DELETE FROM user_study_times WHERE user_id=?", userId);
-        for (Integer hourOfWeek : availableStudyTimes)
-            jdbcTemplate.update("INSERT INTO user_study_times(user_id,hour_of_week) VALUES(?,?)", userId, hourOfWeek);
     }
 
     private void replaceTextArray(long userId, String tableName, String columnName, List<String> values) {
@@ -245,7 +239,7 @@ public class UserService {
 
     private Users loadUser(long userId) {
         try {
-            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,comments,picture_url,avatar,major,grad_year,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), jdbcTemplate.queryForList("SELECT hour_of_week FROM user_study_times WHERE user_id=? ORDER BY hour_of_week", Integer.class, userId), textValues(userId, "user_preferred_locations", "location")), userId);
+            Users user = jdbcTemplate.queryForObject("SELECT id,username,email,bio,comments,picture_url,avatar,major,grad_year,study_duration_minutes,created_at,updated_at FROM users WHERE id=?", (resultSet, rowNumber) -> new Users(resultSet, textValues(userId, "user_classes", "class_name"), textValues(userId, "user_studying", "class_name"), textValues(userId, "user_preferred_locations", "location")), userId);
             if (user == null) throw new EmptyResultDataAccessException(1);
             return user;
         } catch (EmptyResultDataAccessException exception) {
@@ -305,6 +299,6 @@ public class UserService {
         Integer gradYear,
         List<String> classes,
         List<String> studying,
-        List<Integer> studyTimes,
+        Integer studyDurationMinutes,
         List<String> preferredStudyLocations) { }
 }
