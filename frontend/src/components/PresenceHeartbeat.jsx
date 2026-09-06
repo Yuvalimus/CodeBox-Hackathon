@@ -1,7 +1,7 @@
 ﻿import { useEffect } from 'react';
 import { heartbeat, HEARTBEAT_INTERVAL_MS } from '../presence.js';
 
-// Owned by App so queue presence remains fresh across every authenticated page.
+// Presence is refreshed only while the user is actively looking for a study buddy.
 export default function PresenceHeartbeat({ active, onError }) {
   useEffect(() => {
     if (!active) return;
