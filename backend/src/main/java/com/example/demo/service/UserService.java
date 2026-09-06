@@ -223,6 +223,10 @@ public class UserService {
                 completeProfile.get("preferredStudyLocations"));
         }
         invalidateUserReads(userId);
+        // Classes and offline-discovery eligibility directly determine who can
+        // appear in recommendation results; do not leave a stale five-second
+        // recommendation cache after a profile save.
+        readCache.invalidatePrefix("recommendations:");
     }
 
     private static String username(Object rawValue) {

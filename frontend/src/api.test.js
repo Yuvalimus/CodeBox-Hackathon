@@ -89,7 +89,7 @@ test('picture uploads use multipart and server-relative images resolve against t
     return new Response(JSON.stringify({ id: 1, pictureUrl: '/uploads/profile-pictures/test.png' }));
   };
   const user = await saveProfileMedia({ file: new File(['picture'], 'photo.png', { type: 'image/png' }) });
-  assert.equal(fromUser(user).pictureUrl, 'https://study.happyxd.dev/uploads/profile-pictures/test.png');
+  assert.equal(fromUser(user).pictureUrl, 'https://study.happyxd.dev/api/uploads/profile-pictures/test.png');
   assert.equal(mediaUrl('https://example.com/photo.png'), 'https://example.com/photo.png');
   assert.equal('pictureUrl' in profileBody({ name: 'Alex', classes: [], pictureUrl: fromUser(user).pictureUrl }), false);
   assert.equal(profileBody({ name: 'Alex', classes: [], pictureUrl: fromUser(user).pictureUrl }).avatar, 'sage');

@@ -9,12 +9,16 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 public class RecommendationService {
     private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofSeconds(5);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
+    private static final Pattern COURSE_CODE = Pattern.compile("^([A-Z]{2,4})\\s*(\\d{4})$");
 
     private final JdbcTemplate jdbcTemplate;
     private final UserService userService;
@@ -130,9 +134,13 @@ public class RecommendationService {
     private List<Candidate> loadRecommendations(long userId, int limit, QueueMode mode) {
         Users currentUser = userService.find(userId);
         Set<Long> usersWhoAcceptedMe = usersWhoAccepted(userId);
+        Set<String> currentClasses = matchingClasses(currentUser, mode);
         List<Candidate> recommendations = new ArrayList<>();
         for (Long candidateId : eligibleCandidateIds(userId, mode)) {
             Users candidate = userService.find(candidateId);
+            if (currentClasses.isEmpty() || java.util.Collections.disjoint(currentClasses, matchingClasses(candidate, mode))) {
+                continue;
+            }
             recommendations.add(Candidate.from(candidate, score(currentUser, candidate, mode)));
         }
         recommendations.sort(Comparator
@@ -147,15 +155,26 @@ public class RecommendationService {
             return score(firstUser, secondUser);
         }
         return score(new CompatibilityProfile(
-            new HashSet<>(firstUser.classes()), firstUser.studyDurationMinutes(), firstUser.gradYear()),
+            matchingClasses(firstUser, mode), firstUser.studyDurationMinutes(), firstUser.gradYear()),
             new CompatibilityProfile(
-                new HashSet<>(secondUser.classes()), secondUser.studyDurationMinutes(), secondUser.gradYear()));
+                matchingClasses(secondUser, mode), secondUser.studyDurationMinutes(), secondUser.gradYear()));
+    }
+
+    private Set<String> matchingClasses(Users user, QueueMode mode) {
+        List<String> values = mode == QueueMode.ACTIVE ? user.studying() : user.classes();
+        Set<String> normalized = new HashSet<>();
+        for (String value : values) {
+            String course = value.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", " ");
+            Matcher matcher = COURSE_CODE.matcher(course);
+            normalized.add(matcher.matches() ? matcher.group(1) + " " + matcher.group(2) : course);
+        }
+        return normalized;
     }
 
     private Set<Long> usersWhoAccepted(long userId) {
         return new HashSet<>(jdbcTemplate.queryForList(
             "SELECT actor_user_id FROM match_decisions WHERE target_user_id=? "
-                + "AND (decision='deferred' OR (decision='accepted' AND created_at>?))",
+                + "AND decision IN ('accepted','deferred') AND created_at>?",
             Long.class, userId, java.time.Instant.now().minus(MatchService.DECISION_TTL).toString()));
     }
 
@@ -164,17 +183,13 @@ public class RecommendationService {
         String queueEligibility = mode == QueueMode.ACTIVE
             ? "(EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))"
             : "(users.offline_discoverable=1 OR EXISTS (SELECT 1 FROM user_queue_presence queue_presence WHERE queue_presence.user_id=users.id AND queue_presence.last_heartbeat_at>?) OR EXISTS (SELECT 1 FROM permanent_test_queue_users permanent_test_user WHERE permanent_test_user.user_id=users.id))";
-        Object[] parameters = new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(), userId,
+        Object[] parameters = new Object[]{userId, java.time.Instant.now().minus(QueuePresenceService.OFFLINE_AFTER).toString(),
             userId, decisionCutoff, userId, userId, userId};
-        String sharedClassTable = mode == QueueMode.ACTIVE ? "user_studying" : "user_classes";
         return jdbcTemplate.queryForList(
             "SELECT users.id FROM users WHERE users.id<>? "
                 + "AND " + queueEligibility + " "
-                + "AND EXISTS (SELECT 1 FROM " + sharedClassTable + " current_class "
-                + "JOIN " + sharedClassTable + " candidate_class ON candidate_class.class_name=current_class.class_name "
-                + "WHERE current_class.user_id=? AND candidate_class.user_id=users.id) "
                 + "AND users.id NOT IN (SELECT target_user_id FROM match_decisions WHERE actor_user_id=? "
-                + "AND (decision='deferred' OR created_at>?)) "
+                + "AND created_at>?) "
                 + "AND users.id NOT IN (SELECT CASE WHEN user_a_id=? THEN user_b_id ELSE user_a_id END "
                 + "FROM matches WHERE user_a_id=? OR user_b_id=?) "
                 + "ORDER BY users.id",

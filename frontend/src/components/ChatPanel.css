@@ -16,6 +16,7 @@
 .chat-open-row { display: flex; align-items: center; gap: 16px; flex: 1; min-width: 0; min-height: 72px; border: 0; background: transparent; color: var(--ink); text-align: left; padding: 10px; border-radius: 12px; }
 .chat-open-row:hover { background: #f0f5e9; }.chat-list-avatar { width: 54px; height: 54px; flex-basis: 54px; }
 .chat-row-copy { flex: 1; min-width: 0; }.chat-row-copy strong { font-size: 16px; }.chat-row-copy small { display: block; margin-top: 7px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--muted); font-size: 13px; }
+.chat-unread-dot { width: 10px; height: 10px; flex: 0 0 10px; border-radius: 50%; background: #d93025; box-shadow: 0 0 0 3px #d930251f; }
 .chat-unmatch { color: var(--muted); background: transparent; min-height: 44px; transition: background .15s, color .15s; }.chat-unmatch:hover,.chat-unmatch:focus-visible { color: #a12c32; background: #ffe8e6; }
 .chat-empty { text-align: center; padding: 60px 20px; color: var(--muted); }.chat-empty h3 { color: var(--ink); }
 .chat-active { display: flex; flex-direction: column; flex: 1; min-height: 0; animation: chat-open .18s ease-out; }

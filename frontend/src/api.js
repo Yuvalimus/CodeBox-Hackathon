@@ -62,7 +62,12 @@ export function mediaUrl(value) {
   const base = apiBase;
   if (!value) return null;
   if (value.startsWith('/uploads/')) {
-    return /^https?:\/\//.test(base) ? new URL(value, base).href : `${base.replace(/\/$/, '')}${value}`;
+    // Uploaded files are served by Spring. Keep them beneath the API prefix so
+    // production Nginx forwards the request instead of serving the SPA fallback.
+    const apiRoot = /^https?:\/\//.test(base)
+      ? `${base.replace(/\/$/, '')}/`
+      : new URL(`${base.replace(/\/$/, '')}/`, window.location.origin).href;
+    return new URL(value.slice(1), apiRoot).href;
   }
   return value;
 }
