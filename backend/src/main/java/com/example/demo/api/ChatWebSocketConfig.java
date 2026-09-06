@@ -11,6 +11,8 @@ import org.springframework.web.socket.config.annotation.EnableWebSocket;
 import org.springframework.web.socket.config.annotation.WebSocketConfigurer;
 import org.springframework.web.socket.config.annotation.WebSocketHandlerRegistry;
 import org.springframework.web.socket.server.HandshakeInterceptor;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.net.URI;
 import java.util.Arrays;
@@ -19,6 +21,7 @@ import java.util.Map;
 @Configuration
 @EnableWebSocket
 public class ChatWebSocketConfig implements WebSocketConfigurer {
+    private static final Logger log = LoggerFactory.getLogger(ChatWebSocketConfig.class);
     private final ChatEventSocketHandler handler;
     private final JwtService jwt;
     private final String[] origins;
@@ -48,11 +51,19 @@ public class ChatWebSocketConfig implements WebSocketConfigurer {
         public boolean beforeHandshake(ServerHttpRequest request, ServerHttpResponse response,
                                        WebSocketHandler wsHandler, Map<String, Object> attributes) {
             String token = queryParameter(request.getURI(), "token");
-            if (token == null) return false;
+
+            if (token == null) {
+                log.warn("Rejected chat WebSocket handshake without a token");
+                return false;
+            }
+
             try {
-                attributes.put("userId", jwt.verify(token));
+                long userId = jwt.verify(token);
+                attributes.put("userId", userId);
+                log.info("Authenticated chat WebSocket handshake for user {}", userId);
                 return true;
             } catch (RuntimeException exception) {
+                log.warn("Rejected chat WebSocket handshake with an invalid token");
                 return false;
             }
         }

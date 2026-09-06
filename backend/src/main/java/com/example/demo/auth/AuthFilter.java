@@ -26,7 +26,10 @@ public class AuthFilter extends OncePerRequestFilter {
     protected boolean shouldNotFilter(HttpServletRequest request) {
         String requestPath = request.getRequestURI();
         return requestPath.equals("/health") || requestPath.equals("/register") || requestPath.equals("/login")
-            || requestPath.startsWith("/uploads/profile-pictures/");
+            || requestPath.startsWith("/uploads/profile-pictures/")
+            // Native browser WebSockets cannot send Authorization headers; the
+            // WebSocket handshake interceptor verifies its short-lived token.
+            || requestPath.equals("/ws/chat");
     }
 
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
