@@ -2,6 +2,8 @@ package com.example.demo.service;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Duration;
 import java.time.Instant;
@@ -33,7 +35,6 @@ public class QueuePresenceService {
             "UPDATE user_queue_presence SET last_heartbeat_at=? WHERE user_id=?",
             now.toString(), userId);
         if (refreshed == 0) return Map.of("online", true, "looking", false, "expiresAt", now.plus(OFFLINE_AFTER).toString());
-        readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
         return response(true, now);
     }
 
@@ -43,7 +44,7 @@ public class QueuePresenceService {
             "INSERT INTO user_queue_presence(user_id,last_heartbeat_at) VALUES(?,?) "
                 + "ON CONFLICT(user_id) DO UPDATE SET last_heartbeat_at=excluded.last_heartbeat_at",
             userId, now.toString());
-        readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+        invalidateRecommendationReads();
         return response(true, now);
     }
 
@@ -55,7 +56,7 @@ public class QueuePresenceService {
 
     public void leave(long userId) {
         jdbcTemplate.update("DELETE FROM user_queue_presence WHERE user_id=?", userId);
-        readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+        invalidateRecommendationReads();
     }
 
     public Map<String, Object> status(long userId) {
@@ -82,7 +83,20 @@ public class QueuePresenceService {
 
     public void removeExpiredPresences() {
         int deleted = jdbcTemplate.update("DELETE FROM user_queue_presence WHERE last_heartbeat_at<=?", Instant.now().minus(OFFLINE_AFTER).toString());
-        if (deleted > 0) readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+        if (deleted > 0) invalidateRecommendationReads();
+    }
+
+    private void invalidateRecommendationReads() {
+        if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+            readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+            return;
+        }
+        TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+            @Override
+            public void afterCommit() {
+                readCache.invalidatePrefix(RECOMMENDATION_CACHE_PREFIX);
+            }
+        });
     }
 
     private Map<String, Object> response(boolean online, Instant heartbeat) {

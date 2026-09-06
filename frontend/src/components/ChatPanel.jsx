@@ -12,11 +12,13 @@ export default function ChatPanel({ profile, initialChatId, onUnmatch }) {
   const sequence = useRef(0);
   function handleChatError(error, id) {
     if (error.code === 'not_chat_member' || error.status === 404) {
+      const endedCurrentChat = chat?.id === id || initialChatId === id;
       setChat(previous => previous?.id === id ? null : previous);
       setChats(previous => previous.filter(item => item.id !== id));
       setMatches([]);
       setBody('');
       setError('This chat is no longer available. Chats expire after 24 hours; you can find another study buddy from Home.');
+      if (endedCurrentChat) onUnmatch?.();
     } else setError(error.message);
   }
   async function refresh() {

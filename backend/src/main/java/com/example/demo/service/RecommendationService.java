@@ -14,7 +14,7 @@ import java.util.Set;
 
 @Service
 public class RecommendationService {
-    private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofMinutes(15);
+    private static final Duration RECOMMENDATION_CACHE_TTL = Duration.ofSeconds(5);
     private static final String RECOMMENDATION_CACHE_PREFIX = "recommendations:";
 
     private final JdbcTemplate jdbcTemplate;
@@ -120,7 +120,7 @@ public class RecommendationService {
         }
         recommendations.sort(Comparator
             .<Map<String, Object>, Boolean>comparing(recommendation -> !usersWhoAcceptedMe.contains((Long) recommendation.get("id")))
-            .thenComparing(Comparator.comparing((Map<String, Object> recommendation) -> -(Double) recommendation.get("compatibility")))
+            .thenComparing((Map<String, Object> recommendation) -> -(Double) recommendation.get("compatibility"))
             .thenComparing(recommendation -> (Long) recommendation.get("id")));
         return List.copyOf(recommendations.subList(0, Math.min(limit, recommendations.size())));
     }

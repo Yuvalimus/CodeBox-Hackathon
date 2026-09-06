@@ -242,7 +242,7 @@ Returns `201 Created` with the saved message. Messages are trimmed and must be 1
 
 ### `DELETE /chats/{chatId}`
 
-Ends the authenticated member's direct chat, removes its match, clears the pair's previous decisions, and returns the requester to the queue. They can immediately be recommended again. Returns `204 No Content`.
+Ends the authenticated member's direct chat, removes its match, clears the pair's previous decisions, and returns both participants to the queue. They can immediately be recommended again. Returns `204 No Content`.
 
 ## Looking now
 

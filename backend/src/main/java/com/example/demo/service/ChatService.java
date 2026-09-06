@@ -102,8 +102,8 @@ public class ChatService {
             userId, otherUserId, otherUserId, userId);
         jdbcTemplate.update("DELETE FROM chats WHERE id=?", chatId);
         queuePresence.join(userId);
+        queuePresence.join(otherUserId);
         invalidateChatReads();
-        readCache.invalidatePrefix("recommendations:");
         readCache.invalidatePrefix("matches:");
     }
 
