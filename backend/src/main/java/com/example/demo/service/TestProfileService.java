@@ -57,7 +57,7 @@ public class TestProfileService {
             "test-" + uniqueSuffix + "@calpoly.edu", "Generated test profile for local development.",
             "Looking for a focused one-hour study session.", null, "sage", pick(MAJORS),
             2026 + random.nextInt(5), classes, List.of(primaryClass),
-            List.of(random.nextInt(672), random.nextInt(672)), List.of(pick(LOCATIONS)));
+            30 + random.nextInt(5) * 30, List.of(pick(LOCATIONS)));
     }
 
     private String pick(String[] values) {

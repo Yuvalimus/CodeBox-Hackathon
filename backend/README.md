@@ -28,7 +28,7 @@ All other routes require `Authorization: Bearer <token>`.
 `GET /matches`, `GET /chats`, `GET /chats/{chatId}`, `POST /chats/{chatId}/messages`,
 and `PUT|GET|DELETE /looking-now` implement the product flows. Profile reads/updates are at `GET|PATCH /me`.
 
-`PATCH /me` updates any supplied profile field: `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `classes`, `studying`, `studyTimes`, or `preferredStudyLocations`. `avatar` is one of `sage`, `blue`, `peach`, or `lavender` and defaults to `sage`. `comments` is a public optional field for what the user is looking for (for example, “Studying for one hour”). Profile arrays are JSON arrays at the API boundary.
+`PATCH /me` updates any supplied profile field: `username`, `email`, `bio`, `comments`, `pictureUrl`, `avatar`, `major`, `gradYear`, `studyDurationMinutes`, `classes`, `studying`, or `preferredStudyLocations`. `studyDurationMinutes` is 15–480 minutes in 15-minute increments and defaults to 60. `avatar` is one of `sage`, `blue`, `peach`, or `lavender` and defaults to `sage`. `comments` is a public optional field for what the user is looking for (for example, “Studying for one hour”). Profile arrays are JSON arrays at the API boundary.
 
 Upload a profile picture with authenticated `POST /me/picture` using multipart field `file`. JPEG, PNG, and WebP files up to 5 MB are stored at `UPLOAD_DIR` (default: `uploads/profile-pictures`) and saved to `pictureUrl`.
 

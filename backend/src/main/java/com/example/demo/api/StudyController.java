@@ -27,6 +27,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.UUID;
 
 @RestController
@@ -161,8 +162,12 @@ public class StudyController {
     }
 
     @PostMapping("/recommendations/{userId}/accept")
-    public MatchService.Decision accept(HttpServletRequest r, @PathVariable String userId) {
-        return matches.accept(authenticatedUserId(r), positiveId(userId));
+    public ResponseEntity<?> accept(HttpServletRequest r, @PathVariable String userId) {
+        Optional<MatchService.Decision> decision = matches.accept(authenticatedUserId(r), positiveId(userId));
+        if (decision.isEmpty()) {
+            return ResponseEntity.ok(new EmptyResponse());
+        }
+        return ResponseEntity.ok(decision.get());
     }
 
     @PostMapping("/recommendations/{userId}/reject")
@@ -226,10 +231,10 @@ public class StudyController {
 
     public record RegistrationRequest(String username, String password, String email, String bio, String comments, String pictureUrl, String avatar,
                                       String major, Integer gradYear, List<String> classes, List<String> studying,
-                                      List<Integer> studyTimes, List<String> preferredStudyLocations) {
+                                      Integer studyDurationMinutes, List<String> preferredStudyLocations) {
         public UserService.Registration toRegistration() {
             return new UserService.Registration(username, password, email, bio, comments, pictureUrl, avatar,
-                major, gradYear, classes, studying, studyTimes, preferredStudyLocations);
+                major, gradYear, classes, studying, studyDurationMinutes, preferredStudyLocations);
         }
     }
 
@@ -237,6 +242,7 @@ public class StudyController {
     }
 
     public record HealthResponse(String status) { }
+    public record EmptyResponse() { }
     public record AuthenticationResponse(String token, com.example.demo.domain.Users.Profile user) { }
     public record ChatTicketResponse(String ticket) { }
     public record TestProfilesResponse(List<com.example.demo.domain.Users.PublicProfile> profiles) { }
