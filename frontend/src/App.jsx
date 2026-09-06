@@ -89,12 +89,11 @@ export default function App() {
     if (loggingOut) return;
     setLoggingOut(true); setLogoutError('');
     try {
-      await goOffline();
-      await request('/logout', 'POST');
+      try { await goOffline(); } catch { /* Queue presence expires shortly if cleanup is unavailable. */ }
+      try { await request('/logout', 'POST'); } catch { /* Local logout must not depend on network cleanup. */ }
       setSession(null); setMatchNotice(null); setToken(null); setProfile(null); setSetupDraft(null); setMatch(null); handledChats.current.clear();
       goTo('/login');
-    } catch(error) { setLogoutError(error.message); }
-    finally { setLoggingOut(false); }
+    } finally { setLoggingOut(false); }
   }
   async function saveProfile(draft) {
     const current = await request('/me');
