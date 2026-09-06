@@ -24,3 +24,8 @@
 :root { --brand-wordmark-green: #43813d; }
 .brand-name { display: inline-block; white-space: nowrap; }
 .brand-name-w { color: var(--brand-wordmark-green); font-size: 1.18em; line-height: 1; }
+
+.brand { align-items: center; }
+.brand .brand-icon { display: flex; align-items: center; justify-content: center; flex-shrink: 0; transform: translateY(4px); }
+.brand .brand-icon svg { display: block; }
+.brand .brand-name { line-height: 1; }
