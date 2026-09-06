@@ -2,18 +2,9 @@ import React, { useEffect, useRef, useState } from 'react';
 import { AVATARS } from '../config/avatars.js';
 import AvatarArt from '../components/AvatarArt.jsx';
 import BookIcon from '../components/BookIcon.jsx';
-import StudyTimePicker from '../components/StudyTimePicker.jsx';
 import { PRODUCT_NAME } from '../config/brand.js';
 import './ProfileSetupPage.css';
 import './SetupFlow.css';
-
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-function formatStudyTime(slot) {
-  const day = DAYS[Math.floor(slot / 96)];
-  const minutes = (slot % 96) * 15;
-  const hour = Math.floor(minutes / 60);
-  return day + ' ' + (hour % 12 || 12) + ':' + String(minutes % 60).padStart(2, '0') + ' ' + (hour < 12 ? 'AM' : 'PM');
-}
 
 export default function ProfileSetupPage({ profile: savedProfile, onProfileChange: saveProfile, onAvatarSelect, navigate, goTo, editing = false, step = 1, setupDraft, onSetupDraft }) {
   const [profile, onProfileChange] = useState(editing ? savedProfile : setupDraft || savedProfile);
@@ -24,9 +15,6 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   const [error, setError] = useState('');
   const [photoError, setPhotoError] = useState('');
   const [photoUrl, setPhotoUrl] = useState('');
-  const [studyDay, setStudyDay] = useState(1);
-  const [studyHour, setStudyHour] = useState(12);
-  const [studyMinute, setStudyMinute] = useState(0);
   const courseInput = useRef(null);
   const photoInput = useRef(null);
 
@@ -64,13 +52,6 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
     setError('');
     courseInput.current?.focus();
     return true;
-  }
-
-  function addStudyTime() {
-    const slot = studyDay * 96 + studyHour * 4 + studyMinute / 15;
-    const studyTimes = profile.studyTimes || [];
-    if (studyTimes.includes(slot)) return;
-    update('studyTimes', [...studyTimes, slot].sort((first, second) => first - second));
   }
 
   async function finish(event) {
@@ -119,10 +100,10 @@ export default function ProfileSetupPage({ profile: savedProfile, onProfileChang
   return <div className={`profile-setup setup-flow${editing ? ' profile-edit' : ''}`}>
     <header className="profile-header"><a className="brand" href="/" onClick={navigate}><span className="brand-icon"><BookIcon /></span>{PRODUCT_NAME}.</a></header>
     <main className="profile-grid">
-      <form className="profile-card" onSubmit={finish} noValidate><p className="setup-progress">{editing ? 'Your profile' : `Step ${step} of 3`}</p><h1>{editing ? 'Edit profile.' : step === 1 ? 'Your classes.' : step === 2 ? 'A little about you.' : 'Pick an avatar.'}</h1>{saveError && <p role="alert" className="error">{saveError}</p>}
+      <form className="profile-card" onSubmit={finish} noValidate><p className="setup-progress">{editing ? 'Your profile' : `Step ${step} of 3`}</p><div className="profile-title-row">{editing && <a className="profile-title-back" href="/home" onClick={navigate} aria-label="Back to home">&#8592;</a>}<h1>{editing ? 'Edit profile.' : step === 1 ? 'Your classes.' : step === 2 ? 'A little about you.' : 'Pick an avatar.'}</h1></div>{saveError && <p role="alert" className="error">{saveError}</p>}
         {editing && <div className="field"><label htmlFor="profile-name">Name (required)</label><input id="profile-name" maxLength={32} autoComplete="name" required value={profile.name} onChange={(event) => { update('name', event.target.value); setNameError(''); }} aria-invalid={Boolean(nameError)} aria-describedby={nameError ? 'profile-name-error' : undefined} />{nameError && <p id="profile-name-error" className="error">{nameError}</p>}</div>}
         {(editing || step === 1) && <section aria-labelledby="classes-title"><div className="field"><label htmlFor="major">Major (optional)</label><input id="major" maxLength={100} value={profile.major} onChange={event => update('major', event.target.value)} /></div><div className="profile-section-title"><h2 id="classes-title">Your current classes</h2><span>Required</span></div><label htmlFor="course">Class code</label><div className="profile-class-entry"><input ref={courseInput} id="course" value={course} placeholder="CSC 2001" autoCapitalize="characters" spellCheck="false" aria-invalid={Boolean(error)} aria-describedby={error ? 'course-error' : 'course-hint'} onChange={(event) => { setCourse(event.target.value); setError(''); }} onKeyDown={(event) => { if (event.key === 'Enter') { event.preventDefault(); addCourse(); } }} /><button type="button" onClick={addCourse}>Add class +</button></div><p className="hint" id="course-hint">e.g. CSC 2001</p>{error && <p className="error" id="course-error" role="alert">{error}</p>}<ul className="profile-class-list" aria-label="Added classes">{profile.classes.map((item) => <li key={item}>{item}<button type="button" aria-label={`Remove ${item}`} onClick={() => { update('classes', profile.classes.filter((value) => value !== item)); setError(''); }}>×</button></li>)}</ul></section>}
-        {(editing || step === 2) && <section><div className="field"><label htmlFor="year">Year (optional)</label><select id="year" value={profile.year} onChange={event => update('year', event.target.value)}><option value="">Select year</option>{['First', 'Second', 'Third', 'Fourth', 'Fifth+'].map(year => <option key={year}>{year}</option>)}</select></div><div className="field"><label htmlFor="bio">Bio (optional)</label><textarea id="bio" rows={4} maxLength={500} value={profile.bio} onChange={event => update('bio', event.target.value)} /></div><div className="profile-study-times"><div className="profile-section-title"><h2 id="study-times-title">When do you like to study?</h2><span>Optional</span></div><p className="hint">Drag the wheels to choose 15-minute availability windows.</p><StudyTimePicker day={studyDay} hour={studyHour} minute={studyMinute} onDayChange={setStudyDay} onHourChange={setStudyHour} onMinuteChange={setStudyMinute} /><button className="profile-add-time" type="button" onClick={addStudyTime}>Add this time</button><ul className="profile-time-list" aria-label="Added study times">{(profile.studyTimes || []).map(slot => <li key={slot}>{formatStudyTime(slot)}<button type="button" aria-label={'Remove ' + formatStudyTime(slot)} onClick={() => update('studyTimes', profile.studyTimes.filter(value => value !== slot))}>×</button></li>)}</ul></div></section>}
+        {(editing || step === 2) && <section><div className="field"><label htmlFor="year">Year (optional)</label><select id="year" value={profile.year} onChange={event => update('year', event.target.value)}><option value="">Select year</option>{['First', 'Second', 'Third', 'Fourth', 'Fifth+'].map(year => <option key={year}>{year}</option>)}</select></div><div className="field"><label htmlFor="bio">Bio (optional)</label><textarea id="bio" rows={4} maxLength={500} value={profile.bio} onChange={event => update('bio', event.target.value)} /></div></section>}
         {(editing || step === 3) && <section aria-label="Profile picture"><h2 className="profile-picture-title">Profile picture</h2><fieldset className="setup-avatars"><legend className="sr-only">Choose your avatar</legend>{AVATARS.map((avatar) => <label key={avatar.id} className={!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id ? 'selected' : ''}><input type="radio" name="avatar" checked={!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id} onChange={() => selectAvatar(avatar.id)} /><AvatarArt avatar={avatar.id} label={avatar.label} />{!profile.photo && !profile.pictureUrl && profile.avatar === avatar.id && <span className="avatar-selected" aria-hidden="true">&#10003;</span>}</label>)}</fieldset><div className="profile-upload-panel">
   <input ref={photoInput} id="photo" type="file" hidden accept="image/jpeg,image/png,image/webp" onChange={selectPhoto} aria-label="Upload profile photo" />
   {photoUrl && <img className="profile-upload-preview" src={photoUrl} alt="Selected profile photo" onError={() => { setPhotoError('Choose a valid image.'); onProfileChange(previous => ({ ...previous, photo: null, pictureUrl: null })); }} />}

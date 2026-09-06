@@ -27,3 +27,5 @@ App owns the in-memory looking session; Home and its deck stay mounted but hidde
 
 PresenceHeartbeat owns a cancellable, non-overlapping 30-second loop across routes. Its heartbeat API adapter is deliberately empty until the backend defines the route, cadence, expiry, and response. Heartbeats must only renew existing presence, never recreate a matched/stopped session. Matching ends the frontend looking session without sending offline: removal from the pool belongs to the backend. A match opens chat immediately while swiping, or shows a clickable banner elsewhere without interrupting the current chat/editor.
 
+
+Session duration: frontend now collects durationMinutes in Find a buddy (hours plus 0/15/30/45 minutes). It stays in session state; add a queue/session duration field before sending it. Profile edits no longer send studyTimes; existing server availability is left unchanged.
